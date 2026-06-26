@@ -203,6 +203,9 @@ def create_slides(content, image_paths):
     return final_slide_paths
 
 # --- Instagram API Functions ---
+import urllib.error
+import sys
+
 def upload_to_catbox(file_path):
     print(f"Uploading {file_path} to catbox...")
     url = 'https://catbox.moe/user/api.php'
@@ -221,8 +224,15 @@ def upload_to_catbox(file_path):
     req.add_header('User-Agent', 'Mozilla/5.0')
     try:
         with urllib.request.urlopen(req) as res:
-            return res.read().decode('utf-8')
-    except:
+            url_res = res.read().decode('utf-8')
+            print(f"Catbox success: {url_res}")
+            return url_res
+    except urllib.error.HTTPError as e:
+        print(f"Catbox HTTPError: {e.code} {e.reason}")
+        print(f"Response body: {e.read().decode('utf-8')}")
+        return None
+    except Exception as e:
+        print(f"Catbox upload failed: {e}")
         return None
 
 def post_to_instagram(image_urls, caption):
@@ -286,8 +296,12 @@ if __name__ == "__main__":
             catbox_urls.append(upload_to_catbox(path))
             
         if all(catbox_urls):
-            post_to_instagram(catbox_urls, content['caption'])
+            success = post_to_instagram(catbox_urls, content['caption'])
+            if not success:
+                sys.exit(1)
         else:
             print("Failed to upload all images to Catbox.")
+            sys.exit(1)
     except Exception as e:
         print(f"Workflow failed: {e}")
+        sys.exit(1)
