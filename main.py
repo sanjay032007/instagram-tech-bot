@@ -39,10 +39,36 @@ def get_latest_news():
     return "\n\n".join(news_items)
 
 @retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
-def generate_post_content_raw(news_text):
-    print("Sending news to Gemini API to extract entities and generate slides...")
+def run_with_failover(task_name, models, execution_func):
+    """
+    Tries a list of models sequentially. If a model fails (e.g., 429 Rate Limit),
+    it immediately falls over to the next model. If all models fail, it raises
+    an exception so Tenacity can trigger exponential backoff and retry the whole chain.
+    """
     client = genai.Client(api_key=GEMINI_API_KEY)
-    system_prompt = """You are an expert Instagram tech news curator. 
+    last_exception = None
+    for model in models:
+        try:
+            result = execution_func(client, model)
+            print(f"[GEMINI] Task: {task_name} | Model Used: {model}")
+            return result
+        except Exception as e:
+            err_str = str(e)
+            if '429' in err_str or 'RESOURCE_EXHAUSTED' in err_str:
+                print(f"[GEMINI] Rate limited on {model}. Failing over to next model...")
+            else:
+                print(f"[GEMINI] Error on {model} ({e}). Failing over to next model...")
+            last_exception = e
+            continue
+    
+    print(f"[GEMINI] All configured models exhausted for task '{task_name}'. Triggering backoff retry...")
+    raise last_exception
+
+def generate_post_content(news_text):
+    print("Sending news to Gemini API to extract entities and generate slides...")
+    
+    def exec_func(client, model):
+        system_prompt = """You are an expert Instagram tech news curator. 
 Review the provided recent tech news. Pick the single most viral, breaking, or important story.
 Create a 5-slide carousel post about it.
 
@@ -67,98 +93,95 @@ Output ONLY raw JSON using this schema:
   ],
   "caption": "string"
 }"""
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
-        contents=news_text,
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            response_mime_type="application/json",
-            temperature=0.7
+        response = client.models.generate_content(
+            model=model,
+            contents=news_text,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json",
+                temperature=0.7
+            )
         )
-    )
-    return json.loads(response.text)
+        return json.loads(response.text)
 
-def generate_post_content(news_text):
+    models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash']
     try:
-        return generate_post_content_raw(news_text)
+        return run_with_failover("News Generation & Keyword Extraction", models, exec_func)
     except Exception as e:
-        print(f"Failed to generate content after retries: {e}")
+        print(f"Failed to generate content after complete failover and retries: {e}")
         raise e
 
-@retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
-def validate_image_with_gemini_raw(image_path, slide_context):
-    client = genai.Client(api_key=GEMINI_API_KEY)
+def validate_image_with_gemini(image_path, slide_context):
     print(f"Validating image relevance to: '{slide_context}'")
-    myfile = client.files.upload(file=image_path)
-    prompt = f"""You are a professional editorial image reviewer.
+    
+    def exec_func(client, model):
+        myfile = client.files.upload(file=image_path)
+        prompt = f"""You are a professional editorial image reviewer.
 Analyze this image. Does it look like a high-quality, professional photograph or highly relevant illustration for a slide discussing: '{slide_context}'?
 Reject images that are: abstract particle art, random cubes, random gradients, unrelated stock photos, or extremely generic.
 Score the relevance and quality from 0 to 100.
 Output ONLY raw JSON format: {{"score": 85, "reason": "Clear photo, highly relevant."}}"""
 
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
-        contents=[myfile, prompt],
-        config=types.GenerateContentConfig(response_mime_type="application/json")
-    )
-    validation = json.loads(response.text)
-    print(f"Validation Score: {validation.get('score')} | Reason: {validation.get('reason')}")
-    return validation.get('score', 0)
+        response = client.models.generate_content(
+            model=model,
+            contents=[myfile, prompt],
+            config=types.GenerateContentConfig(response_mime_type="application/json")
+        )
+        validation = json.loads(response.text)
+        print(f"Validation Details: {validation.get('score')} | {validation.get('reason')}")
+        return validation.get('score', 0)
 
-def validate_image_with_gemini(image_path, slide_context):
+    models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash']
     try:
-        time.sleep(4)
-        return validate_image_with_gemini_raw(image_path, slide_context)
+        return run_with_failover("Image Relevance Validation", models, exec_func)
     except Exception as e:
         print(f"Validation error (retries exhausted): {e}")
         return 0
 
-@retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
-def get_safe_zone_raw(image_path):
-    client = genai.Client(api_key=GEMINI_API_KEY)
+def get_safe_zone(image_path):
     print(f"Calculating dynamic layout safe zone...")
-    myfile = client.files.upload(file=image_path)
-    prompt = """You are a layout designer. We need to place a text block on this 1080x1080 image.
+    
+    def exec_func(client, model):
+        myfile = client.files.upload(file=image_path)
+        prompt = """You are a layout designer. We need to place a text block on this 1080x1080 image.
 Find the largest empty or 'safe' area that avoids covering human faces, important logos, or the main subject of the image.
 The text block needs to occupy roughly 35-45% of the image.
 Provide the X and Y coordinates of the top-left corner of this safe zone, and its maximum Width and Height.
 Typically safe zones are at the top (y=100) or bottom (y=500), spanning the full width (x=80, w=920).
 Output ONLY raw JSON format: {"x": 80, "y": 600, "w": 920, "h": 400}"""
 
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
-        contents=[myfile, prompt],
-        config=types.GenerateContentConfig(response_mime_type="application/json")
-    )
-    data = json.loads(response.text)
-    print(f"Calculated Safe Zone: {data}")
-    return data
+        response = client.models.generate_content(
+            model=model,
+            contents=[myfile, prompt],
+            config=types.GenerateContentConfig(response_mime_type="application/json")
+        )
+        return json.loads(response.text)
 
-def get_safe_zone(image_path):
+    models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash']
     try:
-        time.sleep(4)
-        return get_safe_zone_raw(image_path)
+        data = run_with_failover("Layout Reasoning", models, exec_func)
+        print(f"Calculated Safe Zone: {data}")
+        return data
     except Exception as e:
         print(f"Safe zone calculation error (retries exhausted): {e}")
         return {"x": 80, "y": 550, "w": 920, "h": 450}
 
-@retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
-def rewrite_text_raw(text, target_words):
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    print(f"Rewriting text to fit within {target_words} words...")
-    prompt = f"Rewrite this text to be shorter and punchier, fitting exactly within {target_words} words maximum while retaining core meaning: {text}"
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
-        contents=prompt
-    )
-    new_text = response.text.strip()
-    print(f"Rewrote to: {new_text}")
-    return new_text
-
 def rewrite_text(text, target_words):
+    print(f"Rewriting text to fit within {target_words} words...")
+    
+    def exec_func(client, model):
+        prompt = f"Rewrite this text to be shorter and punchier, fitting exactly within {target_words} words maximum while retaining core meaning: {text}"
+        response = client.models.generate_content(
+            model=model,
+            contents=prompt
+        )
+        return response.text.strip()
+
+    models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash']
     try:
-        time.sleep(4)
-        return rewrite_text_raw(text, target_words)
+        new_text = run_with_failover("Typography Rewriting", models, exec_func)
+        print(f"Rewrote to: {new_text}")
+        return new_text
     except Exception as e:
         print(f"Rewrite error (retries exhausted): {e}")
         return text 
@@ -179,13 +202,13 @@ def get_valid_unsplash_image(search_queries, slide_context):
                         continue
                     
                     img_url = res['urls']['regular']
-                    print(f"Evaluating: {img_url}")
+                    print(f"Evaluating candidate image: {img_url}")
                     temp_path = f"temp_{img_id}.jpg"
                     urllib.request.urlretrieve(img_url, temp_path)
                     
                     score = validate_image_with_gemini(temp_path, slide_context)
                     if score >= 80:
-                        print(f"ACCEPTED Image {img_id} (Score: {score})")
+                        print(f"ACCEPTED Image {img_id} (Score: {score}). Breaking search loop immediately.")
                         history.append(img_id)
                         save_history(history)
                         return temp_path
@@ -198,34 +221,32 @@ def get_valid_unsplash_image(search_queries, slide_context):
     return None
 
 @retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
-def generate_fallback_image_raw(slide_context):
+def generate_fallback_image(slide_context):
     print(f"\n--- FALLBACK STAGE: Generating AI Image for '{slide_context}' ---")
     client = genai.Client(api_key=GEMINI_API_KEY)
-    result = client.models.generate_images(
-        model='imagen-3.0-generate-001',
-        prompt=f"A photorealistic, clean, editorial illustration about: {slide_context}. Professional, high quality.",
-        config=types.GenerateImagesConfig(
-            number_of_images=1,
-            output_mime_type="image/jpeg",
-            aspect_ratio="1:1"
-        )
-    )
-    for generated_image in result.generated_images:
-        image = Image.open(io.BytesIO(generated_image.image.image_bytes))
-        path = f'fallback_image_{int(time.time())}.jpg'
-        image.save(path)
-        print("ACCEPTED AI Fallback Image.")
-        history = load_history()
-        history.append(path.split('.')[0])
-        save_history(history)
-        return path
-    return None
-
-def generate_fallback_image(slide_context):
     try:
-        return generate_fallback_image_raw(slide_context)
+        print(f"[GEMINI] Task: AI Image Generation | Model Used: imagen-3.0-generate-001")
+        result = client.models.generate_images(
+            model='imagen-3.0-generate-001',
+            prompt=f"A photorealistic, clean, editorial illustration about: {slide_context}. Professional, high quality.",
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                output_mime_type="image/jpeg",
+                aspect_ratio="1:1"
+            )
+        )
+        for generated_image in result.generated_images:
+            image = Image.open(io.BytesIO(generated_image.image.image_bytes))
+            path = f'fallback_image_{int(time.time())}.jpg'
+            image.save(path)
+            print("ACCEPTED AI Fallback Image.")
+            history = load_history()
+            history.append(path.split('.')[0])
+            save_history(history)
+            return path
     except Exception as e:
-        print(f"Fallback Imagen error (retries exhausted): {e}")
+        print(f"Fallback Imagen error: {e}")
+        raise e
     return None
 
 def wrap_text_to_lines(draw, text, font, max_width):
@@ -233,7 +254,6 @@ def wrap_text_to_lines(draw, text, font, max_width):
     current_line = []
     for word in text.split(' '):
         test_line = ' '.join(current_line + [word])
-        # strip markdown just for measuring length
         clean_line = test_line.replace('**', '')
         if draw.textbbox((0, 0), clean_line, font=font)[2] <= max_width:
             current_line.append(word)
