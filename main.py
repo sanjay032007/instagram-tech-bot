@@ -10,6 +10,7 @@ import io
 import base64
 from google import genai
 from google.genai import types
+from tenacity import retry, wait_fixed, stop_after_attempt
 
 # --- Config & Secrets ---
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -37,10 +38,10 @@ def get_latest_news():
         news_items.append(f"Title: {entry.title}\nSummary: {entry.get('summary', '')}")
     return "\n\n".join(news_items)
 
-def generate_post_content(news_text):
+@retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
+def generate_post_content_raw(news_text):
     print("Sending news to Gemini API to extract entities and generate slides...")
     client = genai.Client(api_key=GEMINI_API_KEY)
-    
     system_prompt = """You are an expert Instagram tech news curator. 
 Review the provided recent tech news. Pick the single most viral, breaking, or important story.
 Create a 5-slide carousel post about it.
@@ -66,7 +67,6 @@ Output ONLY raw JSON using this schema:
   ],
   "caption": "string"
 }"""
-
     response = client.models.generate_content(
         model='gemini-2.5-flash',
         contents=news_text,
@@ -78,72 +78,90 @@ Output ONLY raw JSON using this schema:
     )
     return json.loads(response.text)
 
-def validate_image_with_gemini(image_path, slide_context):
+def generate_post_content(news_text):
+    try:
+        return generate_post_content_raw(news_text)
+    except Exception as e:
+        print(f"Failed to generate content after retries: {e}")
+        raise e
+
+@retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
+def validate_image_with_gemini_raw(image_path, slide_context):
     client = genai.Client(api_key=GEMINI_API_KEY)
     print(f"Validating image relevance to: '{slide_context}'")
-    try:
-        time.sleep(4.1) # Rate limit compliance
-        myfile = client.files.upload(file=image_path)
-        prompt = f"""You are a professional editorial image reviewer.
+    myfile = client.files.upload(file=image_path)
+    prompt = f"""You are a professional editorial image reviewer.
 Analyze this image. Does it look like a high-quality, professional photograph or highly relevant illustration for a slide discussing: '{slide_context}'?
 Reject images that are: abstract particle art, random cubes, random gradients, unrelated stock photos, or extremely generic.
 Score the relevance and quality from 0 to 100.
 Output ONLY raw JSON format: {{"score": 85, "reason": "Clear photo, highly relevant."}}"""
 
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=[myfile, prompt],
-            config=types.GenerateContentConfig(response_mime_type="application/json")
-        )
-        validation = json.loads(response.text)
-        print(f"Validation Score: {validation.get('score')} | Reason: {validation.get('reason')}")
-        return validation.get('score', 0)
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=[myfile, prompt],
+        config=types.GenerateContentConfig(response_mime_type="application/json")
+    )
+    validation = json.loads(response.text)
+    print(f"Validation Score: {validation.get('score')} | Reason: {validation.get('reason')}")
+    return validation.get('score', 0)
+
+def validate_image_with_gemini(image_path, slide_context):
+    try:
+        time.sleep(4)
+        return validate_image_with_gemini_raw(image_path, slide_context)
     except Exception as e:
-        print(f"Validation error: {e}")
+        print(f"Validation error (retries exhausted): {e}")
         return 0
 
-def get_safe_zone(image_path):
+@retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
+def get_safe_zone_raw(image_path):
     client = genai.Client(api_key=GEMINI_API_KEY)
     print(f"Calculating dynamic layout safe zone...")
-    try:
-        time.sleep(4.1) # Rate limit compliance
-        myfile = client.files.upload(file=image_path)
-        prompt = """You are a layout designer. We need to place a text block on this 1080x1080 image.
+    myfile = client.files.upload(file=image_path)
+    prompt = """You are a layout designer. We need to place a text block on this 1080x1080 image.
 Find the largest empty or 'safe' area that avoids covering human faces, important logos, or the main subject of the image.
 The text block needs to occupy roughly 35-45% of the image.
 Provide the X and Y coordinates of the top-left corner of this safe zone, and its maximum Width and Height.
 Typically safe zones are at the top (y=100) or bottom (y=500), spanning the full width (x=80, w=920).
 Output ONLY raw JSON format: {"x": 80, "y": 600, "w": 920, "h": 400}"""
 
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=[myfile, prompt],
-            config=types.GenerateContentConfig(response_mime_type="application/json")
-        )
-        data = json.loads(response.text)
-        print(f"Calculated Safe Zone: {data}")
-        return data
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=[myfile, prompt],
+        config=types.GenerateContentConfig(response_mime_type="application/json")
+    )
+    data = json.loads(response.text)
+    print(f"Calculated Safe Zone: {data}")
+    return data
+
+def get_safe_zone(image_path):
+    try:
+        time.sleep(4)
+        return get_safe_zone_raw(image_path)
     except Exception as e:
-        print(f"Safe zone calculation error: {e}")
-        # Default fallback: Bottom half
+        print(f"Safe zone calculation error (retries exhausted): {e}")
         return {"x": 80, "y": 550, "w": 920, "h": 450}
 
-def rewrite_text(text, target_words):
+@retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
+def rewrite_text_raw(text, target_words):
     client = genai.Client(api_key=GEMINI_API_KEY)
     print(f"Rewriting text to fit within {target_words} words...")
+    prompt = f"Rewrite this text to be shorter and punchier, fitting exactly within {target_words} words maximum while retaining core meaning: {text}"
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=prompt
+    )
+    new_text = response.text.strip()
+    print(f"Rewrote to: {new_text}")
+    return new_text
+
+def rewrite_text(text, target_words):
     try:
-        time.sleep(4.1) # Rate limit compliance
-        prompt = f"Rewrite this text to be shorter and punchier, fitting exactly within {target_words} words maximum while retaining core meaning: {text}"
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt
-        )
-        new_text = response.text.strip()
-        print(f"Rewrote to: {new_text}")
-        return new_text
+        time.sleep(4)
+        return rewrite_text_raw(text, target_words)
     except Exception as e:
-        print(f"Rewrite error: {e}")
-        return text # Fail gracefully
+        print(f"Rewrite error (retries exhausted): {e}")
+        return text 
 
 def get_valid_unsplash_image(search_queries, slide_context):
     history = load_history()
@@ -179,30 +197,35 @@ def get_valid_unsplash_image(search_queries, slide_context):
     print("\nFAILED: All search queries exhausted. No valid images found on Unsplash.")
     return None
 
-def generate_fallback_image(slide_context):
+@retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
+def generate_fallback_image_raw(slide_context):
     print(f"\n--- FALLBACK STAGE: Generating AI Image for '{slide_context}' ---")
     client = genai.Client(api_key=GEMINI_API_KEY)
-    try:
-        result = client.models.generate_images(
-            model='imagen-3.0-generate-001',
-            prompt=f"A photorealistic, clean, editorial illustration about: {slide_context}. Professional, high quality.",
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                output_mime_type="image/jpeg",
-                aspect_ratio="1:1"
-            )
+    result = client.models.generate_images(
+        model='imagen-3.0-generate-001',
+        prompt=f"A photorealistic, clean, editorial illustration about: {slide_context}. Professional, high quality.",
+        config=types.GenerateImagesConfig(
+            number_of_images=1,
+            output_mime_type="image/jpeg",
+            aspect_ratio="1:1"
         )
-        for generated_image in result.generated_images:
-            image = Image.open(io.BytesIO(generated_image.image.image_bytes))
-            path = f'fallback_image_{int(time.time())}.jpg'
-            image.save(path)
-            print("ACCEPTED AI Fallback Image.")
-            history = load_history()
-            history.append(path.split('.')[0])
-            save_history(history)
-            return path
+    )
+    for generated_image in result.generated_images:
+        image = Image.open(io.BytesIO(generated_image.image.image_bytes))
+        path = f'fallback_image_{int(time.time())}.jpg'
+        image.save(path)
+        print("ACCEPTED AI Fallback Image.")
+        history = load_history()
+        history.append(path.split('.')[0])
+        save_history(history)
+        return path
+    return None
+
+def generate_fallback_image(slide_context):
+    try:
+        return generate_fallback_image_raw(slide_context)
     except Exception as e:
-        print(f"Fallback Imagen error: {e}")
+        print(f"Fallback Imagen error (retries exhausted): {e}")
     return None
 
 def wrap_text_to_lines(draw, text, font, max_width):
@@ -296,18 +319,14 @@ def create_slides(content, slide_image_paths):
             print(f"Error loading background image {bg_path}: {e}")
             bg = Image.new("RGB", (width, height), (20, 20, 20))
             
-        # 1. SPATIAL ANALYSIS
-        # We need an image specifically cropped to pass to gemini for bounding box accurately
         bg.save(f"temp_layout_{idx}.jpg")
         safe_zone = get_safe_zone(f"temp_layout_{idx}.jpg")
         
-        # Enforce bounds
         sz_x = max(40, safe_zone.get("x", 80))
         sz_y = max(40, safe_zone.get("y", 550))
         sz_w = min(width - sz_x - 40, safe_zone.get("w", 920))
         sz_h = min(height - sz_y - 40, safe_zone.get("h", 450))
         
-        # 2. TYPESETTING & OPTIMIZATION (Rewriting loop)
         dummy_img = Image.new("RGBA", (width, height))
         draw_measure = ImageDraw.Draw(dummy_img)
         
@@ -317,37 +336,31 @@ def create_slides(content, slide_image_paths):
         max_headline_lines = 2
         max_subtext_lines = 3
         
-        # Rewrite loop for Headline
         while True:
-            head_lines = wrap_text_to_lines(draw_measure, headline_text, font_bold, sz_w - 80) # -80 for internal padding
+            head_lines = wrap_text_to_lines(draw_measure, headline_text, font_bold, sz_w - 80) 
             if len(head_lines) <= max_headline_lines:
                 break
-            headline_text = rewrite_text(headline_text, 6) # force extremely short
+            headline_text = rewrite_text(headline_text, 6) 
             
-        # Rewrite loop for Subtext
         while True:
             sub_lines = wrap_text_to_lines(draw_measure, subtext, font_sub, sz_w - 80)
             if len(sub_lines) <= max_subtext_lines:
                 break
-            subtext = rewrite_text(subtext, 20) # force shorter
+            subtext = rewrite_text(subtext, 20) 
 
-        # Calculate bounding box height based on actual lines
         h_line_height = (draw_measure.textbbox((0,0), "T", font=font_bold)[3] - draw_measure.textbbox((0,0), "T", font=font_bold)[1]) * 1.4
         s_line_height = (draw_measure.textbbox((0,0), "T", font=font_sub)[3] - draw_measure.textbbox((0,0), "T", font=font_sub)[1]) * 1.4
         
-        total_text_height = (len(head_lines) * h_line_height) + 60 + (len(sub_lines) * s_line_height) + 60 # + padding
+        total_text_height = (len(head_lines) * h_line_height) + 60 + (len(sub_lines) * s_line_height) + 60 
         
-        # Adjust Y to center the block inside the safe zone vertically if it's smaller
         final_y = sz_y + max(0, (sz_h - total_text_height) // 2)
         
-        # 3. RENDERING (Premium Backdrop)
         overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
         draw_overlay = ImageDraw.Draw(overlay)
         
         bg_rect_bounds = [sz_x, final_y, sz_x + sz_w, final_y + total_text_height + 40]
         draw_rounded_rectangle(draw_overlay, bg_rect_bounds, radius=30, fill=(15, 15, 20, 210))
         
-        # Render branding outside/near the box
         draw_overlay.text((sz_x + 20, final_y - 40), "TECH NEWS TODAY", font=font_brand, fill=(255, 255, 255, 200))
         num_text = f"{idx+1:02d} / {len(slides_info):02d}"
         num_w = draw_overlay.textbbox((0,0), num_text, font=font_num)[2]
@@ -356,13 +369,12 @@ def create_slides(content, slide_image_paths):
         slide = Image.alpha_composite(bg.convert("RGBA"), overlay)
         draw = ImageDraw.Draw(slide)
         
-        # 4. DRAW TEXT
         start_x = sz_x + 40
         current_y = final_y + 40
         accent_color = (0, 229, 255, 255)
         
         current_y = draw_styled_text_lines(draw, head_lines, font_bold, font_reg, (255, 255, 255, 255), accent_color, start_x, current_y, 1.4)
-        current_y += 20 # Extra spacing between head and body
+        current_y += 20 
         draw_styled_text_lines(draw, sub_lines, font_sub, font_sub, (240, 240, 245, 255), accent_color, start_x, current_y, 1.4)
         
         out_path = f"slide_{idx+1}.png"
