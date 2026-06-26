@@ -43,17 +43,26 @@ def generate_post_content(news_text):
     
     system_prompt = """You are an expert Instagram tech news curator. 
 Review the provided recent tech news. Pick the single most viral, breaking, or important story.
-Extract the core 'news_topic' (e.g. 'OpenAI delays GPT-5.6 due to safety concerns').
-Create an array of 5 'search_queries' for Unsplash, ordered from most specific to least specific. Use extracted entities (e.g., 'OpenAI headquarters', 'Sam Altman', 'AI safety'). Do NOT use generic terms like 'technology' unless absolutely necessary.
-Create a 5-slide carousel post about it. For each slide, provide a 'headline' (UPPERCASE) and 'subtext' (Sentence case).
-CRITICAL STYLING: You MUST use ** tags to wrap exactly 1 or 2 words in each headline that should be colored with an accent color. (e.g., GLOBAL TECH\n**SELL-OFF.**)
+Create a 5-slide carousel post about it.
+
+CRITICAL TEXT LIMITS:
+- Headline (UPPERCASE): Maximum 2 lines (approx 6-8 words).
+- Subtext (Sentence case): Maximum 3-4 short lines (approx 20-30 words).
+- You MUST use ** tags to wrap exactly 1 or 2 words in each headline that should be colored with an accent color. (e.g., GLOBAL TECH\n**SELL-OFF.**)
+
+For EACH slide, also generate 3 highly specific 'search_queries' for Unsplash that relate specifically to that slide's content. Do NOT use generic terms like 'technology', 'abstract', or 'ai' unless absolutely necessary.
+
 Provide an Instagram 'caption' with relevant hashtags.
+
 Output ONLY raw JSON using this schema:
 {
   "news_topic": "string",
-  "search_queries": ["string", "string", "string", "string", "string"],
   "slides": [
-    {"headline": "string", "subtext": "string"}
+    {
+      "headline": "string",
+      "subtext": "string",
+      "search_queries": ["query1", "query2", "query3"]
+    }
   ],
   "caption": "string"
 }"""
@@ -69,13 +78,15 @@ Output ONLY raw JSON using this schema:
     )
     return json.loads(response.text)
 
-def validate_image_with_gemini(image_path, news_topic):
+def validate_image_with_gemini(image_path, slide_context):
     client = genai.Client(api_key=GEMINI_API_KEY)
-    print(f"Validating image relevance to: '{news_topic}'")
+    print(f"Validating image relevance to: '{slide_context}'")
     try:
+        # Rate limit compliance: wait 4.1 seconds (15 RPM)
+        time.sleep(4.1)
         myfile = client.files.upload(file=image_path)
         prompt = f"""You are a professional editorial image reviewer.
-Analyze this image. Does it look like a high-quality, professional photograph or highly relevant illustration for a news story about: '{news_topic}'?
+Analyze this image. Does it look like a high-quality, professional photograph or highly relevant illustration for a slide discussing: '{slide_context}'?
 Reject images that are: abstract particle art, random cubes, random gradients, unrelated stock photos, or extremely generic.
 Score the relevance and quality from 0 to 100.
 Output ONLY raw JSON format: {{"score": 85, "reason": "Clear photo, highly relevant."}}"""
@@ -92,7 +103,7 @@ Output ONLY raw JSON format: {{"score": 85, "reason": "Clear photo, highly relev
         print(f"Validation error: {e}")
         return 0
 
-def get_valid_unsplash_image(search_queries, news_topic):
+def get_valid_unsplash_image(search_queries, slide_context):
     history = load_history()
     for query in search_queries:
         print(f"\n--- SEARCH STAGE: '{query}' ---")
@@ -112,7 +123,7 @@ def get_valid_unsplash_image(search_queries, news_topic):
                     temp_path = f"temp_{img_id}.jpg"
                     urllib.request.urlretrieve(img_url, temp_path)
                     
-                    score = validate_image_with_gemini(temp_path, news_topic)
+                    score = validate_image_with_gemini(temp_path, slide_context)
                     if score >= 80:
                         print(f"ACCEPTED Image {img_id} (Score: {score})")
                         history.append(img_id)
@@ -126,13 +137,13 @@ def get_valid_unsplash_image(search_queries, news_topic):
     print("\nFAILED: All search queries exhausted. No valid images found on Unsplash.")
     return None
 
-def generate_fallback_image(news_topic):
-    print(f"\n--- FALLBACK STAGE: Generating AI Image for '{news_topic}' ---")
+def generate_fallback_image(slide_context):
+    print(f"\n--- FALLBACK STAGE: Generating AI Image for '{slide_context}' ---")
     client = genai.Client(api_key=GEMINI_API_KEY)
     try:
         result = client.models.generate_images(
             model='imagen-3.0-generate-001',
-            prompt=f"A photorealistic, clean, editorial illustration about: {news_topic}. Professional, high quality.",
+            prompt=f"A photorealistic, clean, editorial illustration about: {slide_context}. Professional, high quality.",
             config=types.GenerateImagesConfig(
                 number_of_images=1,
                 output_mime_type="image/jpeg",
@@ -141,12 +152,11 @@ def generate_fallback_image(news_topic):
         )
         for generated_image in result.generated_images:
             image = Image.open(io.BytesIO(generated_image.image.image_bytes))
-            path = 'fallback_image.jpg'
+            path = f'fallback_image_{int(time.time())}.jpg'
             image.save(path)
             print("ACCEPTED AI Fallback Image.")
-            # Record a unique ID so we track it (just a timestamp)
             history = load_history()
-            history.append(f"ai_gen_{int(time.time())}")
+            history.append(path.split('.')[0])
             save_history(history)
             return path
     except Exception as e:
@@ -191,13 +201,13 @@ def draw_styled_text(draw, text, font_bold, font_reg, default_color, accent_colo
         y += int(line_height * line_spacing)
     return y
 
-def create_slides(content, bg_path):
+def create_slides(content, slide_image_paths):
     print("\nGenerating slide images...")
     font_dir = "fonts/Inter Desktop/" if os.path.exists("fonts/Inter Desktop/") else ""
     try:
-        font_bold = ImageFont.truetype(os.path.join(font_dir, "Inter-Bold.otf"), 68)
-        font_reg = ImageFont.truetype(os.path.join(font_dir, "Inter-Regular.otf"), 68)
-        font_sub = ImageFont.truetype(os.path.join(font_dir, "Inter-Regular.otf"), 34)
+        font_bold = ImageFont.truetype(os.path.join(font_dir, "Inter-Bold.otf"), 84) # Increased to ~72-96px range
+        font_reg = ImageFont.truetype(os.path.join(font_dir, "Inter-Regular.otf"), 84)
+        font_sub = ImageFont.truetype(os.path.join(font_dir, "Inter-Regular.otf"), 40) # Increased to ~34-42px range
         font_brand = ImageFont.truetype(os.path.join(font_dir, "Inter-Bold.otf"), 22)
         font_num = ImageFont.truetype(os.path.join(font_dir, "Inter-Regular.otf"), 22)
     except:
@@ -208,26 +218,28 @@ def create_slides(content, bg_path):
     final_slide_paths = []
     width, height = 1080, 1080
     
-    try:
-        base_bg = Image.open(bg_path).convert("RGB")
-        bg_w, bg_h = base_bg.size
-        min_dim = min(bg_w, bg_h)
-        crop_box = ((bg_w - min_dim)//2, (bg_h - min_dim)//2, (bg_w + min_dim)//2, (bg_h + min_dim)//2)
-        base_bg = base_bg.crop(crop_box).resize((width, height), Image.Resampling.LANCZOS)
-    except Exception as e:
-        print(f"Error loading background image: {e}")
-        base_bg = Image.new("RGB", (width, height), (20, 20, 20))
-        
     for idx, slide_info in enumerate(slides_info):
-        # We use the identical base_bg for all slides for consistency
-        bg = base_bg.copy()
+        bg_path = slide_image_paths[idx]
+        try:
+            base_bg = Image.open(bg_path).convert("RGB")
+            bg_w, bg_h = base_bg.size
+            min_dim = min(bg_w, bg_h)
+            crop_box = ((bg_w - min_dim)//2, (bg_h - min_dim)//2, (bg_w + min_dim)//2, (bg_h + min_dim)//2)
+            bg = base_bg.crop(crop_box).resize((width, height), Image.Resampling.LANCZOS)
+        except Exception as e:
+            print(f"Error loading background image {bg_path}: {e}")
+            bg = Image.new("RGB", (width, height), (20, 20, 20))
+            
         overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
         draw_overlay = ImageDraw.Draw(overlay)
+        
+        # Darker overlay for better legibility
         for y in range(height):
             if y < height // 2:
-                opacity = int(230 - (y / (height // 2)) * 120)
+                # Top is very dark to read large headlines
+                opacity = int(245 - (y / (height // 2)) * 140)
             else:
-                opacity = int(110 + ((y - height // 2) / (height // 2)) * 120)
+                opacity = int(105 + ((y - height // 2) / (height // 2)) * 140)
             draw_overlay.line([(0, y), (width, y)], fill=(6, 6, 8, opacity))
             
         slide = Image.alpha_composite(bg.convert("RGBA"), overlay)
@@ -235,15 +247,15 @@ def create_slides(content, bg_path):
         
         head_x, head_y = 90, 120
         max_text_width = width - 180
-        accent_color = (0, 229, 255, 255) # Default cyan
+        accent_color = (0, 229, 255, 255)
         
         next_y = draw_styled_text(
             draw=draw, text=slide_info["headline"], font_bold=font_bold, font_reg=font_reg,
             default_color=(255, 255, 255, 255), accent_color=accent_color,
-            max_width=max_text_width, start_x=head_x, start_y=head_y
+            max_width=max_text_width, start_x=head_x, start_y=head_y, line_spacing=1.2
         )
         
-        sub_x, sub_y = 90, next_y + 35
+        sub_x, sub_y = 90, next_y + 45
         wrapped_lines = []
         current_line = []
         for word in slide_info["subtext"].split(' '):
@@ -257,13 +269,13 @@ def create_slides(content, bg_path):
             
         sub_y_curr = sub_y
         for line in wrapped_lines:
-            draw.text((sub_x, sub_y_curr), line, font=font_sub, fill=(230, 230, 235, 255))
-            sub_y_curr += int((draw.textbbox((0, 0), line, font=font_sub)[3] - draw.textbbox((0,0), line, font=font_sub)[1]) * 1.3)
+            draw.text((sub_x, sub_y_curr), line, font=font_sub, fill=(240, 240, 245, 255))
+            sub_y_curr += int((draw.textbbox((0, 0), line, font=font_sub)[3] - draw.textbbox((0,0), line, font=font_sub)[1]) * 1.4)
             
-        draw.text((head_x, height - 70), "TECH NEWS TODAY", font=font_brand, fill=(255, 255, 255, 120))
+        draw.text((head_x, height - 70), "TECH NEWS TODAY", font=font_brand, fill=(255, 255, 255, 140))
         num_text = f"{idx+1:02d} / {len(slides_info):02d}"
         num_w = draw.textbbox((0,0), num_text, font=font_num)[2]
-        draw.text((width - head_x - num_w, height - 70), num_text, font=font_num, fill=(255, 255, 255, 120))
+        draw.text((width - head_x - num_w, height - 70), num_text, font=font_num, fill=(255, 255, 255, 140))
         
         out_path = f"slide_{idx+1}.png"
         slide.convert("RGB").save(out_path)
@@ -349,18 +361,26 @@ if __name__ == "__main__":
         content = generate_post_content(news_text)
         print("Generated Content:", json.dumps(content, indent=2))
         
-        news_topic = content.get('news_topic', 'Technology news')
-        queries = content.get('search_queries', ['technology'])
-        
-        selected_image_path = get_valid_unsplash_image(queries, news_topic)
-        if not selected_image_path:
-            selected_image_path = generate_fallback_image(news_topic)
+        slide_image_paths = []
+        for idx, slide in enumerate(content['slides']):
+            print(f"\n=======================")
+            print(f"PROCESSING SLIDE {idx+1}")
+            print(f"=======================")
             
-        if not selected_image_path:
-            print("FATAL ERROR: Failed to find or generate any valid images for this post. Aborting to maintain quality.")
-            sys.exit(1)
+            slide_context = f"{slide['headline']} - {slide['subtext']}"
+            queries = slide.get('search_queries', [])
             
-        slide_paths = create_slides(content, selected_image_path)
+            img_path = get_valid_unsplash_image(queries, slide_context)
+            if not img_path:
+                img_path = generate_fallback_image(slide_context)
+                
+            if not img_path:
+                print(f"FATAL ERROR: Failed to find or generate valid image for Slide {idx+1}. Aborting to maintain quality.")
+                sys.exit(1)
+            
+            slide_image_paths.append(img_path)
+            
+        slide_paths = create_slides(content, slide_image_paths)
         
         image_urls = []
         for path in slide_paths:
