@@ -1,0 +1,36 @@
+name: Publish Tech News Post
+
+on:
+  workflow_dispatch: # Allows you to manually trigger this from your phone/GitHub app
+
+jobs:
+  build-and-post:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Download Inter Fonts
+      run: |
+        mkdir -p fonts
+        wget "https://github.com/rsms/inter/releases/download/v4.0/Inter-4.0.zip" -O fonts.zip
+        unzip -q fonts.zip -d fonts/
+        
+    - name: Run Automation Script
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
+        IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        IG_ACCOUNT_ID: ${{ secrets.IG_ACCOUNT_ID }}
+      run: python main.py
