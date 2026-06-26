@@ -206,33 +206,31 @@ def create_slides(content, image_paths):
 import urllib.error
 import sys
 
-def upload_to_catbox(file_path):
-    print(f"Uploading {file_path} to catbox...")
-    url = 'https://catbox.moe/user/api.php'
-    boundary = '----WebKitFormBoundary7MA4YWxkTrZu0gW'
-    with open(file_path, 'rb') as f:
-        file_content = f.read()
-    filename = os.path.basename(file_path)
-    body = (
-        f'--{boundary}\r\nContent-Disposition: form-data; name="reqtype"\r\n\r\nfileupload\r\n'
-        f'--{boundary}\r\nContent-Disposition: form-data; name="fileToUpload"; filename="{filename}"\r\n'
-        f'Content-Type: image/png\r\n\r\n'
-    ).encode('utf-8') + file_content + f'\r\n--{boundary}--\r\n'.encode('utf-8')
-    
-    req = urllib.request.Request(url, data=body)
-    req.add_header('Content-Type', f'multipart/form-data; boundary={boundary}')
-    req.add_header('User-Agent', 'Mozilla/5.0')
+import base64
+
+def upload_image(file_path):
+    print(f"Uploading {file_path} to freeimage.host...")
+    url = "https://freeimage.host/api/1/upload"
+    with open(file_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("utf-8")
+    data = urllib.parse.urlencode({
+        "key": "6d207e02198a847aa98d0a2a901485a5",
+        "action": "upload",
+        "source": b64,
+        "format": "json"
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=data)
     try:
         with urllib.request.urlopen(req) as res:
-            url_res = res.read().decode('utf-8')
-            print(f"Catbox success: {url_res}")
-            return url_res
+            response = json.loads(res.read().decode())
+            print(f"Upload success: {response['image']['url']}")
+            return response["image"]["url"]
     except urllib.error.HTTPError as e:
-        print(f"Catbox HTTPError: {e.code} {e.reason}")
+        print(f"HTTPError: {e.code} {e.reason}")
         print(f"Response body: {e.read().decode('utf-8')}")
         return None
     except Exception as e:
-        print(f"Catbox upload failed: {e}")
+        print(f"Upload failed: {e}")
         return None
 
 def post_to_instagram(image_urls, caption):
@@ -291,16 +289,16 @@ if __name__ == "__main__":
         raw_images = download_unsplash_images(content['unsplash_search_term'])
         slide_paths = create_slides(content, raw_images)
         
-        catbox_urls = []
+        image_urls = []
         for path in slide_paths:
-            catbox_urls.append(upload_to_catbox(path))
+            image_urls.append(upload_image(path))
             
-        if all(catbox_urls):
-            success = post_to_instagram(catbox_urls, content['caption'])
+        if all(image_urls):
+            success = post_to_instagram(image_urls, content['caption'])
             if not success:
                 sys.exit(1)
         else:
-            print("Failed to upload all images to Catbox.")
+            print("Failed to upload all images.")
             sys.exit(1)
     except Exception as e:
         print(f"Workflow failed: {e}")
