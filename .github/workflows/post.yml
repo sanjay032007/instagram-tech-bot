@@ -35,3 +35,11 @@ jobs:
         IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
         IG_ACCOUNT_ID: ${{ secrets.IG_ACCOUNT_ID }}
       run: python main.py
+
+    - name: Commit Image History
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add used_images.txt || true
+        git commit -m "Update image history [skip ci]" || true
+        git push

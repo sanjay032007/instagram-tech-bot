@@ -1,22 +1,36 @@
 import os
+import sys
 import json
 import time
 import urllib.request
 import urllib.parse
 import feedparser
+from PIL import Image, ImageDraw, ImageFont
+import io
+import base64
 from google import genai
 from google.genai import types
-from PIL import Image, ImageDraw, ImageFont
 
 # --- Config & Secrets ---
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY")
 IG_ACCESS_TOKEN = os.environ.get("IG_ACCESS_TOKEN")
 IG_ACCOUNT_ID = os.environ.get("IG_ACCOUNT_ID")
+HISTORY_FILE = "used_images.txt"
+
+def load_history():
+    if not os.path.exists(HISTORY_FILE):
+        return []
+    with open(HISTORY_FILE, "r") as f:
+        return [line.strip() for line in f.readlines() if line.strip()]
+
+def save_history(history):
+    with open(HISTORY_FILE, "w") as f:
+        for item in history[-50:]:
+            f.write(f"{item}\n")
 
 def get_latest_news():
     print("Fetching top tech news from RSS...")
-    # Fetching from TechCrunch or similar popular RSS
     feed = feedparser.parse('https://techcrunch.com/feed/')
     news_items = []
     for entry in feed.entries[:10]:
@@ -24,19 +38,20 @@ def get_latest_news():
     return "\n\n".join(news_items)
 
 def generate_post_content(news_text):
-    print("Sending news to Gemini API to generate slides...")
+    print("Sending news to Gemini API to extract entities and generate slides...")
     client = genai.Client(api_key=GEMINI_API_KEY)
     
     system_prompt = """You are an expert Instagram tech news curator. 
 Review the provided recent tech news. Pick the single most viral, breaking, or important story.
-Create a 5-slide carousel post about it.
-For each slide, provide a 'headline' (UPPERCASE) and 'subtext' (Sentence case).
+Extract the core 'news_topic' (e.g. 'OpenAI delays GPT-5.6 due to safety concerns').
+Create an array of 5 'search_queries' for Unsplash, ordered from most specific to least specific. Use extracted entities (e.g., 'OpenAI headquarters', 'Sam Altman', 'AI safety'). Do NOT use generic terms like 'technology' unless absolutely necessary.
+Create a 5-slide carousel post about it. For each slide, provide a 'headline' (UPPERCASE) and 'subtext' (Sentence case).
 CRITICAL STYLING: You MUST use ** tags to wrap exactly 1 or 2 words in each headline that should be colored with an accent color. (e.g., GLOBAL TECH\n**SELL-OFF.**)
-Provide an 'unsplash_search_term' (e.g., 'microchip', 'data center', 'hacker') to find related background images.
 Provide an Instagram 'caption' with relevant hashtags.
 Output ONLY raw JSON using this schema:
 {
-  "unsplash_search_term": "string",
+  "news_topic": "string",
+  "search_queries": ["string", "string", "string", "string", "string"],
   "slides": [
     {"headline": "string", "subtext": "string"}
   ],
@@ -52,40 +67,96 @@ Output ONLY raw JSON using this schema:
             temperature=0.7
         )
     )
-    
     return json.loads(response.text)
 
-def download_unsplash_images(query, count=5):
-    print(f"Fetching {count} images from Unsplash for query: {query}")
-    url = f"https://api.unsplash.com/search/photos?query={urllib.parse.quote(query)}&per_page={count}&orientation=squarish&client_id={UNSPLASH_ACCESS_KEY}"
-    
-    req = urllib.request.Request(url)
-    images = []
+def validate_image_with_gemini(image_path, news_topic):
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    print(f"Validating image relevance to: '{news_topic}'")
     try:
-        with urllib.request.urlopen(req) as response:
-            data = json.loads(response.read().decode())
-            results = data.get('results', [])
-            for i, res in enumerate(results):
-                img_url = res['urls']['regular']
-                filename = f"raw_image_{i+1}.jpg"
-                urllib.request.urlretrieve(img_url, filename)
-                images.append(filename)
-                print(f"Downloaded {filename}")
+        myfile = client.files.upload(file=image_path)
+        prompt = f"""You are a professional editorial image reviewer.
+Analyze this image. Does it look like a high-quality, professional photograph or highly relevant illustration for a news story about: '{news_topic}'?
+Reject images that are: abstract particle art, random cubes, random gradients, unrelated stock photos, or extremely generic.
+Score the relevance and quality from 0 to 100.
+Output ONLY raw JSON format: {{"score": 85, "reason": "Clear photo, highly relevant."}}"""
+
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[myfile, prompt],
+            config=types.GenerateContentConfig(response_mime_type="application/json")
+        )
+        validation = json.loads(response.text)
+        print(f"Validation Score: {validation.get('score')} | Reason: {validation.get('reason')}")
+        return validation.get('score', 0)
     except Exception as e:
-        print(f"Failed to fetch from Unsplash: {e}")
-        # Fallback to a static generic tech image if Unsplash fails/limits
-        fallback = "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1000&auto=format&fit=crop"
-        for i in range(count):
-            filename = f"raw_image_{i+1}.jpg"
-            urllib.request.urlretrieve(fallback, filename)
-            images.append(filename)
-    return images
+        print(f"Validation error: {e}")
+        return 0
+
+def get_valid_unsplash_image(search_queries, news_topic):
+    history = load_history()
+    for query in search_queries:
+        print(f"\n--- SEARCH STAGE: '{query}' ---")
+        url = f"https://api.unsplash.com/search/photos?query={urllib.parse.quote(query)}&per_page=5&orientation=landscape&client_id={UNSPLASH_ACCESS_KEY}"
+        try:
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req) as response:
+                results = json.loads(response.read().decode()).get('results', [])
+                for res in results:
+                    img_id = res['id']
+                    if img_id in history:
+                        print(f"Skipping {img_id}: Found in recent history.")
+                        continue
+                    
+                    img_url = res['urls']['regular']
+                    print(f"Evaluating: {img_url}")
+                    temp_path = f"temp_{img_id}.jpg"
+                    urllib.request.urlretrieve(img_url, temp_path)
+                    
+                    score = validate_image_with_gemini(temp_path, news_topic)
+                    if score >= 80:
+                        print(f"ACCEPTED Image {img_id} (Score: {score})")
+                        history.append(img_id)
+                        save_history(history)
+                        return temp_path
+                    else:
+                        print(f"REJECTED Image {img_id} (Score: {score})")
+                        os.remove(temp_path)
+        except Exception as e:
+            print(f"Search error for query '{query}': {e}")
+    print("\nFAILED: All search queries exhausted. No valid images found on Unsplash.")
+    return None
+
+def generate_fallback_image(news_topic):
+    print(f"\n--- FALLBACK STAGE: Generating AI Image for '{news_topic}' ---")
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    try:
+        result = client.models.generate_images(
+            model='imagen-3.0-generate-001',
+            prompt=f"A photorealistic, clean, editorial illustration about: {news_topic}. Professional, high quality.",
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                output_mime_type="image/jpeg",
+                aspect_ratio="1:1"
+            )
+        )
+        for generated_image in result.generated_images:
+            image = Image.open(io.BytesIO(generated_image.image.image_bytes))
+            path = 'fallback_image.jpg'
+            image.save(path)
+            print("ACCEPTED AI Fallback Image.")
+            # Record a unique ID so we track it (just a timestamp)
+            history = load_history()
+            history.append(f"ai_gen_{int(time.time())}")
+            save_history(history)
+            return path
+    except Exception as e:
+        print(f"Fallback Imagen error: {e}")
+    return None
 
 def draw_styled_text(draw, text, font_bold, font_reg, default_color, accent_color, max_width, start_x, start_y, line_spacing=1.1):
     y = start_y
     lines = text.split('\n')
     bold_mode = False
-    
     bbox_height_test = draw.textbbox((0, 0), "TEST", font=font_bold)
     line_height = bbox_height_test[3] - bbox_height_test[1]
     
@@ -101,7 +172,6 @@ def draw_styled_text(draw, text, font_bold, font_reg, default_color, accent_colo
                 if word.endswith(ending):
                     has_end = True
                     break
-            
             clean_word = word.replace('**', '')
             if has_start:
                 bold_mode = True
@@ -121,9 +191,8 @@ def draw_styled_text(draw, text, font_bold, font_reg, default_color, accent_colo
         y += int(line_height * line_spacing)
     return y
 
-def create_slides(content, image_paths):
-    print("Generating slide images...")
-    
+def create_slides(content, bg_path):
+    print("\nGenerating slide images...")
     font_dir = "fonts/Inter Desktop/" if os.path.exists("fonts/Inter Desktop/") else ""
     try:
         font_bold = ImageFont.truetype(os.path.join(font_dir, "Inter-Bold.otf"), 68)
@@ -137,21 +206,21 @@ def create_slides(content, image_paths):
 
     slides_info = content['slides']
     final_slide_paths = []
+    width, height = 1080, 1080
     
-    for idx, slide_info in enumerate(slides_info):
-        width, height = 1080, 1080
-        bg_path = image_paths[idx] if idx < len(image_paths) else image_paths[0]
-        
-        try:
-            bg = Image.open(bg_path).convert("RGB")
-        except:
-            bg = Image.new("RGB", (width, height), (20, 20, 20))
-            
-        bg_w, bg_h = bg.size
+    try:
+        base_bg = Image.open(bg_path).convert("RGB")
+        bg_w, bg_h = base_bg.size
         min_dim = min(bg_w, bg_h)
         crop_box = ((bg_w - min_dim)//2, (bg_h - min_dim)//2, (bg_w + min_dim)//2, (bg_h + min_dim)//2)
-        bg = bg.crop(crop_box).resize((width, height), Image.Resampling.LANCZOS)
+        base_bg = base_bg.crop(crop_box).resize((width, height), Image.Resampling.LANCZOS)
+    except Exception as e:
+        print(f"Error loading background image: {e}")
+        base_bg = Image.new("RGB", (width, height), (20, 20, 20))
         
+    for idx, slide_info in enumerate(slides_info):
+        # We use the identical base_bg for all slides for consistency
+        bg = base_bg.copy()
         overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
         draw_overlay = ImageDraw.Draw(overlay)
         for y in range(height):
@@ -202,12 +271,6 @@ def create_slides(content, image_paths):
         
     return final_slide_paths
 
-# --- Instagram API Functions ---
-import urllib.error
-import sys
-
-import base64
-
 def upload_image(file_path):
     print(f"Uploading {file_path} to freeimage.host...")
     url = "https://freeimage.host/api/1/upload"
@@ -225,10 +288,6 @@ def upload_image(file_path):
             response = json.loads(res.read().decode())
             print(f"Upload success: {response['image']['url']}")
             return response["image"]["url"]
-    except urllib.error.HTTPError as e:
-        print(f"HTTPError: {e.code} {e.reason}")
-        print(f"Response body: {e.read().decode('utf-8')}")
-        return None
     except Exception as e:
         print(f"Upload failed: {e}")
         return None
@@ -236,7 +295,6 @@ def upload_image(file_path):
 def post_to_instagram(image_urls, caption):
     print("Posting to Instagram...")
     item_ids = []
-    # Create item containers
     for url in image_urls:
         req_url = f"https://graph.instagram.com/v20.0/{IG_ACCOUNT_ID}/media"
         data = urllib.parse.urlencode({'image_url': url, 'is_carousel_item': 'true', 'access_token': IG_ACCESS_TOKEN}).encode('utf-8')
@@ -251,7 +309,6 @@ def post_to_instagram(image_urls, caption):
             return False
         time.sleep(2)
         
-    # Create carousel
     req_url = f"https://graph.instagram.com/v20.0/{IG_ACCOUNT_ID}/media"
     data = urllib.parse.urlencode({'media_type': 'CAROUSEL', 'children': ','.join(item_ids), 'caption': caption, 'access_token': IG_ACCESS_TOKEN}).encode('utf-8')
     try:
@@ -264,7 +321,6 @@ def post_to_instagram(image_urls, caption):
         print(f"Carousel error: {e}")
         return False
         
-    # Wait for ready
     status_url = f"https://graph.instagram.com/v20.0/{carousel_id}?fields=status_code&access_token={IG_ACCESS_TOKEN}"
     while True:
         try:
@@ -273,7 +329,6 @@ def post_to_instagram(image_urls, caption):
         except: pass
         time.sleep(3)
         
-    # Publish
     pub_url = f"https://graph.instagram.com/v20.0/{IG_ACCOUNT_ID}/media_publish"
     data = urllib.parse.urlencode({'creation_id': carousel_id, 'access_token': IG_ACCESS_TOKEN}).encode('utf-8')
     try:
@@ -288,15 +343,24 @@ def post_to_instagram(image_urls, caption):
         print(f"Publish error: {e}")
         return False
 
-# --- Main Execution ---
 if __name__ == "__main__":
     try:
         news_text = get_latest_news()
         content = generate_post_content(news_text)
         print("Generated Content:", json.dumps(content, indent=2))
         
-        raw_images = download_unsplash_images(content['unsplash_search_term'])
-        slide_paths = create_slides(content, raw_images)
+        news_topic = content.get('news_topic', 'Technology news')
+        queries = content.get('search_queries', ['technology'])
+        
+        selected_image_path = get_valid_unsplash_image(queries, news_topic)
+        if not selected_image_path:
+            selected_image_path = generate_fallback_image(news_topic)
+            
+        if not selected_image_path:
+            print("FATAL ERROR: Failed to find or generate any valid images for this post. Aborting to maintain quality.")
+            sys.exit(1)
+            
+        slide_paths = create_slides(content, selected_image_path)
         
         image_urls = []
         for path in slide_paths:
@@ -307,8 +371,9 @@ if __name__ == "__main__":
             if not success:
                 sys.exit(1)
         else:
-            print("Failed to upload all images.")
+            print("Failed to upload all slides.")
             sys.exit(1)
+            
     except Exception as e:
         print(f"Workflow failed: {e}")
         sys.exit(1)
