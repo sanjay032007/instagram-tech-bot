@@ -1,5 +1,5 @@
-git init
-git add .
+git config user.email "bot@example.com"
+git config user.name "IG Bot"
 git commit -m "Initial commit of IG automation bot"
 gh repo create instagram-tech-bot --private --source=. --remote=origin --push
 gh secret set GEMINI_API_KEY -b"AQ.Ab8RN6Ktp6jL1CbmhTpbPu3i8bhVsx5SW-KEJ5wH0fv3AVevuQ"

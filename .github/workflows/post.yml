@@ -1,7 +1,8 @@
 name: Publish Tech News Post
 
 on:
-  workflow_dispatch: # Allows you to manually trigger this from your phone/GitHub app
+  workflow_dispatch:
+  push:
 
 jobs:
   build-and-post:
