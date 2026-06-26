@@ -243,6 +243,9 @@ def post_to_instagram(image_urls, caption):
         try:
             with urllib.request.urlopen(urllib.request.Request(req_url, data=data)) as res:
                 item_ids.append(json.loads(res.read().decode())['id'])
+        except urllib.error.HTTPError as e:
+            print(f"IG Item HTTPError {e.code}: {e.read().decode('utf-8')}")
+            return False
         except Exception as e:
             print(f"Item error: {e}")
             return False
@@ -254,6 +257,9 @@ def post_to_instagram(image_urls, caption):
     try:
         with urllib.request.urlopen(urllib.request.Request(req_url, data=data)) as res:
             carousel_id = json.loads(res.read().decode())['id']
+    except urllib.error.HTTPError as e:
+        print(f"IG Carousel HTTPError {e.code}: {e.read().decode('utf-8')}")
+        return False
     except Exception as e:
         print(f"Carousel error: {e}")
         return False
@@ -275,6 +281,9 @@ def post_to_instagram(image_urls, caption):
             pub_id = json.loads(res.read().decode())['id']
             print(f"SUCCESS! Published post ID: {pub_id}")
             return True
+    except urllib.error.HTTPError as e:
+        print(f"IG Publish HTTPError {e.code}: {e.read().decode('utf-8')}")
+        return False
     except Exception as e:
         print(f"Publish error: {e}")
         return False
