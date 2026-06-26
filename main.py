@@ -5,7 +5,7 @@ import time
 import urllib.request
 import urllib.parse
 import feedparser
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
 import io
 import base64
 from google import genai
@@ -50,7 +50,7 @@ CRITICAL TEXT LIMITS:
 - Subtext (Sentence case): Maximum 3-4 short lines (approx 20-30 words).
 - You MUST use ** tags to wrap exactly 1 or 2 words in each headline that should be colored with an accent color. (e.g., GLOBAL TECH\n**SELL-OFF.**)
 
-For EACH slide, also generate 3 highly specific 'search_queries' for Unsplash that relate specifically to that slide's content. Do NOT use generic terms like 'technology', 'abstract', or 'ai' unless absolutely necessary.
+For EACH slide, also generate 3 highly specific 'search_queries' for Unsplash that relate specifically to that slide's content. Do NOT use generic terms like 'technology' unless absolutely necessary.
 
 Provide an Instagram 'caption' with relevant hashtags.
 
@@ -82,8 +82,7 @@ def validate_image_with_gemini(image_path, slide_context):
     client = genai.Client(api_key=GEMINI_API_KEY)
     print(f"Validating image relevance to: '{slide_context}'")
     try:
-        # Rate limit compliance: wait 4.1 seconds (15 RPM)
-        time.sleep(4.1)
+        time.sleep(4.1) # Rate limit compliance
         myfile = client.files.upload(file=image_path)
         prompt = f"""You are a professional editorial image reviewer.
 Analyze this image. Does it look like a high-quality, professional photograph or highly relevant illustration for a slide discussing: '{slide_context}'?
@@ -102,6 +101,49 @@ Output ONLY raw JSON format: {{"score": 85, "reason": "Clear photo, highly relev
     except Exception as e:
         print(f"Validation error: {e}")
         return 0
+
+def get_safe_zone(image_path):
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    print(f"Calculating dynamic layout safe zone...")
+    try:
+        time.sleep(4.1) # Rate limit compliance
+        myfile = client.files.upload(file=image_path)
+        prompt = """You are a layout designer. We need to place a text block on this 1080x1080 image.
+Find the largest empty or 'safe' area that avoids covering human faces, important logos, or the main subject of the image.
+The text block needs to occupy roughly 35-45% of the image.
+Provide the X and Y coordinates of the top-left corner of this safe zone, and its maximum Width and Height.
+Typically safe zones are at the top (y=100) or bottom (y=500), spanning the full width (x=80, w=920).
+Output ONLY raw JSON format: {"x": 80, "y": 600, "w": 920, "h": 400}"""
+
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[myfile, prompt],
+            config=types.GenerateContentConfig(response_mime_type="application/json")
+        )
+        data = json.loads(response.text)
+        print(f"Calculated Safe Zone: {data}")
+        return data
+    except Exception as e:
+        print(f"Safe zone calculation error: {e}")
+        # Default fallback: Bottom half
+        return {"x": 80, "y": 550, "w": 920, "h": 450}
+
+def rewrite_text(text, target_words):
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    print(f"Rewriting text to fit within {target_words} words...")
+    try:
+        time.sleep(4.1) # Rate limit compliance
+        prompt = f"Rewrite this text to be shorter and punchier, fitting exactly within {target_words} words maximum while retaining core meaning: {text}"
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
+        new_text = response.text.strip()
+        print(f"Rewrote to: {new_text}")
+        return new_text
+    except Exception as e:
+        print(f"Rewrite error: {e}")
+        return text # Fail gracefully
 
 def get_valid_unsplash_image(search_queries, slide_context):
     history = load_history()
@@ -163,9 +205,24 @@ def generate_fallback_image(slide_context):
         print(f"Fallback Imagen error: {e}")
     return None
 
-def draw_styled_text(draw, text, font_bold, font_reg, default_color, accent_color, max_width, start_x, start_y, line_spacing=1.1):
+def wrap_text_to_lines(draw, text, font, max_width):
+    lines = []
+    current_line = []
+    for word in text.split(' '):
+        test_line = ' '.join(current_line + [word])
+        # strip markdown just for measuring length
+        clean_line = test_line.replace('**', '')
+        if draw.textbbox((0, 0), clean_line, font=font)[2] <= max_width:
+            current_line.append(word)
+        else:
+            lines.append(' '.join(current_line))
+            current_line = [word]
+    if current_line:
+        lines.append(' '.join(current_line))
+    return lines
+
+def draw_styled_text_lines(draw, lines, font_bold, font_reg, default_color, accent_color, start_x, start_y, line_spacing=1.4):
     y = start_y
-    lines = text.split('\n')
     bold_mode = False
     bbox_height_test = draw.textbbox((0, 0), "TEST", font=font_bold)
     line_height = bbox_height_test[3] - bbox_height_test[1]
@@ -201,15 +258,24 @@ def draw_styled_text(draw, text, font_bold, font_reg, default_color, accent_colo
         y += int(line_height * line_spacing)
     return y
 
+def draw_rounded_rectangle(draw, bounds, radius, fill):
+    x0, y0, x1, y1 = bounds
+    draw.rectangle([x0 + radius, y0, x1 - radius, y1], fill=fill)
+    draw.rectangle([x0, y0 + radius, x1, y1 - radius], fill=fill)
+    draw.pieslice([x0, y0, x0 + radius * 2, y0 + radius * 2], 180, 270, fill=fill)
+    draw.pieslice([x1 - radius * 2, y0, x1, y0 + radius * 2], 270, 360, fill=fill)
+    draw.pieslice([x0, y1 - radius * 2, x0 + radius * 2, y1], 90, 180, fill=fill)
+    draw.pieslice([x1 - radius * 2, y1 - radius * 2, x1, y1], 0, 90, fill=fill)
+
 def create_slides(content, slide_image_paths):
-    print("\nGenerating slide images...")
+    print("\nGenerating slide images with Dynamic Layout & Advanced Typography...")
     font_dir = "fonts/Inter Desktop/" if os.path.exists("fonts/Inter Desktop/") else ""
     try:
-        font_bold = ImageFont.truetype(os.path.join(font_dir, "Inter-Bold.otf"), 84) # Increased to ~72-96px range
-        font_reg = ImageFont.truetype(os.path.join(font_dir, "Inter-Regular.otf"), 84)
-        font_sub = ImageFont.truetype(os.path.join(font_dir, "Inter-Regular.otf"), 40) # Increased to ~34-42px range
-        font_brand = ImageFont.truetype(os.path.join(font_dir, "Inter-Bold.otf"), 22)
-        font_num = ImageFont.truetype(os.path.join(font_dir, "Inter-Regular.otf"), 22)
+        font_bold = ImageFont.truetype(os.path.join(font_dir, "Inter-Bold.otf"), 100) # MASSIVE
+        font_reg = ImageFont.truetype(os.path.join(font_dir, "Inter-Regular.otf"), 100)
+        font_sub = ImageFont.truetype(os.path.join(font_dir, "Inter-Regular.otf"), 46) # LARGE
+        font_brand = ImageFont.truetype(os.path.join(font_dir, "Inter-Bold.otf"), 24)
+        font_num = ImageFont.truetype(os.path.join(font_dir, "Inter-Regular.otf"), 24)
     except:
         print("Using default fonts")
         font_bold = font_reg = font_sub = font_brand = font_num = ImageFont.load_default()
@@ -230,52 +296,74 @@ def create_slides(content, slide_image_paths):
             print(f"Error loading background image {bg_path}: {e}")
             bg = Image.new("RGB", (width, height), (20, 20, 20))
             
+        # 1. SPATIAL ANALYSIS
+        # We need an image specifically cropped to pass to gemini for bounding box accurately
+        bg.save(f"temp_layout_{idx}.jpg")
+        safe_zone = get_safe_zone(f"temp_layout_{idx}.jpg")
+        
+        # Enforce bounds
+        sz_x = max(40, safe_zone.get("x", 80))
+        sz_y = max(40, safe_zone.get("y", 550))
+        sz_w = min(width - sz_x - 40, safe_zone.get("w", 920))
+        sz_h = min(height - sz_y - 40, safe_zone.get("h", 450))
+        
+        # 2. TYPESETTING & OPTIMIZATION (Rewriting loop)
+        dummy_img = Image.new("RGBA", (width, height))
+        draw_measure = ImageDraw.Draw(dummy_img)
+        
+        headline_text = slide_info["headline"]
+        subtext = slide_info["subtext"]
+        
+        max_headline_lines = 2
+        max_subtext_lines = 3
+        
+        # Rewrite loop for Headline
+        while True:
+            head_lines = wrap_text_to_lines(draw_measure, headline_text, font_bold, sz_w - 80) # -80 for internal padding
+            if len(head_lines) <= max_headline_lines:
+                break
+            headline_text = rewrite_text(headline_text, 6) # force extremely short
+            
+        # Rewrite loop for Subtext
+        while True:
+            sub_lines = wrap_text_to_lines(draw_measure, subtext, font_sub, sz_w - 80)
+            if len(sub_lines) <= max_subtext_lines:
+                break
+            subtext = rewrite_text(subtext, 20) # force shorter
+
+        # Calculate bounding box height based on actual lines
+        h_line_height = (draw_measure.textbbox((0,0), "T", font=font_bold)[3] - draw_measure.textbbox((0,0), "T", font=font_bold)[1]) * 1.4
+        s_line_height = (draw_measure.textbbox((0,0), "T", font=font_sub)[3] - draw_measure.textbbox((0,0), "T", font=font_sub)[1]) * 1.4
+        
+        total_text_height = (len(head_lines) * h_line_height) + 60 + (len(sub_lines) * s_line_height) + 60 # + padding
+        
+        # Adjust Y to center the block inside the safe zone vertically if it's smaller
+        final_y = sz_y + max(0, (sz_h - total_text_height) // 2)
+        
+        # 3. RENDERING (Premium Backdrop)
         overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
         draw_overlay = ImageDraw.Draw(overlay)
         
-        # Darker overlay for better legibility
-        for y in range(height):
-            if y < height // 2:
-                # Top is very dark to read large headlines
-                opacity = int(245 - (y / (height // 2)) * 140)
-            else:
-                opacity = int(105 + ((y - height // 2) / (height // 2)) * 140)
-            draw_overlay.line([(0, y), (width, y)], fill=(6, 6, 8, opacity))
-            
+        bg_rect_bounds = [sz_x, final_y, sz_x + sz_w, final_y + total_text_height + 40]
+        draw_rounded_rectangle(draw_overlay, bg_rect_bounds, radius=30, fill=(15, 15, 20, 210))
+        
+        # Render branding outside/near the box
+        draw_overlay.text((sz_x + 20, final_y - 40), "TECH NEWS TODAY", font=font_brand, fill=(255, 255, 255, 200))
+        num_text = f"{idx+1:02d} / {len(slides_info):02d}"
+        num_w = draw_overlay.textbbox((0,0), num_text, font=font_num)[2]
+        draw_overlay.text((sz_x + sz_w - num_w - 20, final_y - 40), num_text, font=font_num, fill=(255, 255, 255, 200))
+
         slide = Image.alpha_composite(bg.convert("RGBA"), overlay)
         draw = ImageDraw.Draw(slide)
         
-        head_x, head_y = 90, 120
-        max_text_width = width - 180
+        # 4. DRAW TEXT
+        start_x = sz_x + 40
+        current_y = final_y + 40
         accent_color = (0, 229, 255, 255)
         
-        next_y = draw_styled_text(
-            draw=draw, text=slide_info["headline"], font_bold=font_bold, font_reg=font_reg,
-            default_color=(255, 255, 255, 255), accent_color=accent_color,
-            max_width=max_text_width, start_x=head_x, start_y=head_y, line_spacing=1.2
-        )
-        
-        sub_x, sub_y = 90, next_y + 45
-        wrapped_lines = []
-        current_line = []
-        for word in slide_info["subtext"].split(' '):
-            test_line = ' '.join(current_line + [word])
-            if draw.textbbox((0, 0), test_line, font=font_sub)[2] <= max_text_width:
-                current_line.append(word)
-            else:
-                wrapped_lines.append(' '.join(current_line))
-                current_line = [word]
-        if current_line: wrapped_lines.append(' '.join(current_line))
-            
-        sub_y_curr = sub_y
-        for line in wrapped_lines:
-            draw.text((sub_x, sub_y_curr), line, font=font_sub, fill=(240, 240, 245, 255))
-            sub_y_curr += int((draw.textbbox((0, 0), line, font=font_sub)[3] - draw.textbbox((0,0), line, font=font_sub)[1]) * 1.4)
-            
-        draw.text((head_x, height - 70), "TECH NEWS TODAY", font=font_brand, fill=(255, 255, 255, 140))
-        num_text = f"{idx+1:02d} / {len(slides_info):02d}"
-        num_w = draw.textbbox((0,0), num_text, font=font_num)[2]
-        draw.text((width - head_x - num_w, height - 70), num_text, font=font_num, fill=(255, 255, 255, 140))
+        current_y = draw_styled_text_lines(draw, head_lines, font_bold, font_reg, (255, 255, 255, 255), accent_color, start_x, current_y, 1.4)
+        current_y += 20 # Extra spacing between head and body
+        draw_styled_text_lines(draw, sub_lines, font_sub, font_sub, (240, 240, 245, 255), accent_color, start_x, current_y, 1.4)
         
         out_path = f"slide_{idx+1}.png"
         slide.convert("RGB").save(out_path)
