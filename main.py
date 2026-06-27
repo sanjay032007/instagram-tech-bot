@@ -102,7 +102,7 @@ Output ONLY raw JSON using this schema:
         )
         return json.loads(response.text)
 
-    models = ['gemini-3.0-flash-live', 'gemini-2.5-flash', 'gemini-2.5-flash-lite']
+    models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash']
     try:
         return run_with_failover("News Generation & Keyword Extraction", models, exec_func)
     except Exception as e:
@@ -127,7 +127,7 @@ Output ONLY raw JSON format: {{"score": 85, "reason": "Clear photo, dark backgro
         print(f"Validation Details: {validation.get('score')} | {validation.get('reason')}")
         return validation.get('score', 0)
 
-    models = ['gemini-3.0-flash-live', 'gemini-2.5-flash-lite', 'gemini-2.5-flash']
+    models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash']
     try:
         return run_with_failover("Image Relevance Validation", models, exec_func)
     except:
@@ -138,7 +138,7 @@ def rewrite_text(text, target_words):
         prompt = f"Rewrite this text to be shorter and punchier, fitting exactly within {target_words} words maximum while retaining core meaning: {text}"
         response = client.models.generate_content(model=model, contents=prompt)
         return response.text.strip()
-    models = ['gemini-3.0-flash-live', 'gemini-2.5-flash-lite', 'gemini-2.5-flash']
+    models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash']
     try:
         return run_with_failover("Typography Rewriting", models, exec_func)
     except:
