@@ -52,14 +52,21 @@ def run_with_failover(task_name, models, execution_func):
             print(f"[GEMINI] Task: {task_name} | Model Used: {model}")
             return result
         except Exception as e:
-            err_str = str(e)
-            if '429' in err_str or 'RESOURCE_EXHAUSTED' in err_str:
-                print(f"[GEMINI] Rate limited on {model}. Failing over to next model...")
+            err_str = str(e).lower()
+            if '429' in err_str or 'resource_exhausted' in err_str or 'quota' in err_str:
+                print(f"[GEMINI] Rate limited/Quota on {model}. Failing over to next model...")
             else:
                 print(f"[GEMINI] Error on {model} ({e}). Failing over to next model...")
             last_exception = e
             continue
-    print(f"[GEMINI] All configured models exhausted for task '{task_name}'. Triggering backoff retry...")
+            
+    print(f"[GEMINI] All configured models exhausted for task '{task_name}'.")
+    err_str = str(last_exception).lower()
+    if '429' in err_str or 'quota' in err_str or 'resource_exhausted' in err_str:
+        print("CRITICAL: Daily Quota completely exhausted across all models. Aborting to prevent wasted retries.")
+        sys.exit(1)
+        
+    print("Triggering backoff retry for non-quota error...")
     raise last_exception
 
 def generate_post_content(news_text):
@@ -133,22 +140,15 @@ Output ONLY raw JSON format: {{"score": 85, "reason": "Clear photo, dark backgro
     except:
         return 0
 
-def rewrite_text(text, target_words):
-    def exec_func(client, model):
-        prompt = f"Rewrite this text to be shorter and punchier, fitting exactly within {target_words} words maximum while retaining core meaning: {text}"
-        response = client.models.generate_content(model=model, contents=prompt)
-        return response.text.strip()
-    models = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-pro-exp-02-05', 'gemini-2.0-flash', 'gemini-1.5-pro']
-    try:
-        return run_with_failover("Typography Rewriting", models, exec_func)
-    except:
-        return text 
+
 
 def get_valid_unsplash_image(search_queries, slide_context):
     if not UNSPLASH_ACCESS_KEY:
         print("No Unsplash key found. Skipping search.")
         return None
     history = load_history()
+    evaluations = 0
+    
     for query in search_queries:
         print(f"\n--- SEARCH STAGE: '{query}' ---")
         url = f"https://api.unsplash.com/search/photos?query={urllib.parse.quote(query)}&per_page=5&orientation=landscape&client_id={UNSPLASH_ACCESS_KEY}"
@@ -157,16 +157,24 @@ def get_valid_unsplash_image(search_queries, slide_context):
             with urllib.request.urlopen(req) as response:
                 results = json.loads(response.read().decode()).get('results', [])
                 for res in results:
+                    if evaluations >= 3:
+                        print("Max evaluations (3) reached for this slide to conserve API quota. Falling back to AI Generation.")
+                        return None
+                        
                     img_id = res['id']
                     if img_id in history:
                         continue
+                        
                     img_url = res['urls']['regular']
                     print(f"Evaluating candidate image: {img_url}")
                     temp_path = f"temp_{img_id}.jpg"
                     urllib.request.urlretrieve(img_url, temp_path)
+                    
                     time.sleep(5) # Prevent 15 RPM free tier limit!
                     score = validate_image_with_gemini(temp_path, slide_context)
-                    if score >= 75: # Lowered threshold slightly to ensure we get a match
+                    evaluations += 1
+                    
+                    if score >= 75:
                         print(f"ACCEPTED Image {img_id}")
                         history.append(img_id)
                         save_history(history)

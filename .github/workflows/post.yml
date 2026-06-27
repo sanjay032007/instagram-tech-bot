@@ -2,7 +2,9 @@ name: Publish Tech News Post
 
 on:
   workflow_dispatch:
-  push:
+  schedule:
+    # Run every day at 14:00 UTC (10:00 AM Eastern / 7:00 AM Pacific)
+    - cron: '0 14 * * *'
 
 jobs:
   build-and-post:
