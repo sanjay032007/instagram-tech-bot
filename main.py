@@ -286,12 +286,12 @@ def draw_bullet_points(draw, bullets, font, start_y, width=1080):
 
 def create_slides(content, slide_image_paths):
     print("\nGenerating slide images with Premium Presentation Layout...")
-    font_dir = "fonts/Inter Desktop/" if os.path.exists("fonts/Inter Desktop/") else ""
     try:
-        font_headline_bold = ImageFont.truetype(os.path.join(font_dir, "Inter-Black.otf"), 120)
-        font_headline_reg = ImageFont.truetype(os.path.join(font_dir, "Inter-Bold.otf"), 120)
-        font_sub = ImageFont.truetype(os.path.join(font_dir, "Inter-Medium.otf"), 55)
-        font_brand = ImageFont.truetype(os.path.join(font_dir, "Inter-Bold.otf"), 28)
+        font_dir = "/usr/share/fonts/truetype/roboto/"
+        font_headline_bold = ImageFont.truetype(os.path.join(font_dir, "Roboto-Black.ttf"), 120)
+        font_headline_reg = ImageFont.truetype(os.path.join(font_dir, "Roboto-Bold.ttf"), 120)
+        font_sub = ImageFont.truetype(os.path.join(font_dir, "Roboto-Medium.ttf"), 55)
+        font_brand = ImageFont.truetype(os.path.join(font_dir, "Roboto-Bold.ttf"), 28)
     except:
         print("Using fallback Arial fonts for local test")
         try:
