@@ -284,8 +284,13 @@ def create_slides(content, slide_image_paths):
         font_sub = ImageFont.truetype(os.path.join(font_dir, "Inter-Medium.otf"), 55)
         font_brand = ImageFont.truetype(os.path.join(font_dir, "Inter-Bold.otf"), 28)
     except:
-        print("Using default fonts")
-        font_headline_bold = font_headline_reg = font_sub = font_brand = ImageFont.load_default()
+        print("Using fallback Arial fonts for local test")
+        try:
+            font_headline_bold = font_headline_reg = ImageFont.truetype("arialbd.ttf", 120)
+            font_sub = ImageFont.truetype("arial.ttf", 55)
+            font_brand = ImageFont.truetype("arialbd.ttf", 28)
+        except:
+            font_headline_bold = font_headline_reg = font_sub = font_brand = ImageFont.load_default()
 
     slides_info = content['slides']
     final_slide_paths = []
@@ -392,4 +397,35 @@ def post_to_instagram(image_urls, caption):
     except: return False
 
 if __name__ == "__main__":
-    pass
+    try:
+        news_text = get_latest_news()
+        content = generate_post_content(news_text)
+        print(f"Generated Content: {json.dumps(content, indent=2)}")
+        
+        slide_image_paths = []
+        for i, slide in enumerate(content['slides']):
+            print(f"\\n--- Processing Background for Slide {i+1} ---")
+            img_path = get_valid_unsplash_image(slide['search_queries'], slide['headline'])
+            if not img_path:
+                img_path = generate_fallback_image(slide['headline'])
+            if not img_path:
+                print("Using empty black fallback image.")
+                img_path = "fallback_black.jpg"
+                Image.new("RGB", (1080, 1080), (20, 20, 20)).save(img_path)
+            slide_image_paths.append(img_path)
+            
+        final_slides = create_slides(content, slide_image_paths)
+        
+        urls = []
+        for slide in final_slides:
+            url = upload_image(slide)
+            if url: urls.append(url)
+            
+        if len(urls) == len(final_slides):
+            post_to_instagram(urls, content['caption'])
+        else:
+            print("Failed to upload all images.")
+            sys.exit(1)
+    except Exception as e:
+        print(f"Critical error in main pipeline: {e}")
+        sys.exit(1)
