@@ -224,44 +224,71 @@ def draw_gradient_overlay(width, height):
     base.paste(top, (0, 0), mask)
     return base
 
-def draw_styled_text_lines(draw, lines, font_bold, font_reg, start_y, align="center", line_spacing=1.2, width=1080):
-    y = start_y
-    bbox_height_test = draw.textbbox((0, 0), "TEST", font=font_bold)
-    line_height = bbox_height_test[3] - bbox_height_test[1]
+def draw_styled_text_lines(draw, text, font_bold, font_reg, start_y, align="center", line_spacing=1.2, width=1080):
+    max_width = width - 180 # 90px margin on each side
+    explicit_lines = text.split('\n')
+    final_lines = []
     
-    for line in lines:
-        words = line.split(' ')
-        # Calculate total line width first
-        total_line_width = 0
-        word_metrics = [] # (word, font, color, width)
-        
-        bold_mode = False
+    bold_mode = False
+    for e_line in explicit_lines:
+        words = e_line.split(' ')
+        current_line_words = []
+        current_line_width = 0
         for word in words:
             if not word: continue
-            
             has_start = word.startswith('**')
             has_end = any(word.endswith(end) for end in ['**', '**.', '**?', '**,', '**!', '**:'])
             clean_word = word.replace('**', '')
-            
-            if has_start: bold_mode = True
-            current_font = font_bold if bold_mode else font_reg
-            current_color = COLOR_GOLD if bold_mode else COLOR_WHITE
-            
+            temp_bold = True if has_start else bold_mode
+            current_font = font_bold if temp_bold else font_reg
             w_bbox = draw.textbbox((0, 0), clean_word, font=current_font)
             space_bbox = draw.textbbox((0, 0), " ", font=current_font)
             w = (w_bbox[2] - w_bbox[0]) + (space_bbox[2] - space_bbox[0])
             
+            if current_line_width + w > max_width and current_line_words:
+                final_lines.append(" ".join(current_line_words))
+                current_line_words = [word]
+                current_line_width = w
+            else:
+                current_line_words.append(word)
+                current_line_width += w
+            if has_end: bold_mode = False
+            elif has_start: bold_mode = True
+        if current_line_words:
+            final_lines.append(" ".join(current_line_words))
+            
+    y = start_y
+    bbox_height_test = draw.textbbox((0, 0), "TEST", font=font_bold)
+    line_height = bbox_height_test[3] - bbox_height_test[1]
+    
+    for line in final_lines:
+        words = line.split(' ')
+        total_line_width = 0
+        word_metrics = []
+        
+        bold_mode = False
+        for word in words:
+            if not word: continue
+            has_start = word.startswith('**')
+            has_end = any(word.endswith(end) for end in ['**', '**.', '**?', '**,', '**!', '**:'])
+            clean_word = word.replace('**', '')
+            if has_start: bold_mode = True
+            current_font = font_bold if bold_mode else font_reg
+            current_color = COLOR_GOLD if bold_mode else COLOR_WHITE
+            w_bbox = draw.textbbox((0, 0), clean_word, font=current_font)
+            space_bbox = draw.textbbox((0, 0), " ", font=current_font)
+            w = (w_bbox[2] - w_bbox[0]) + (space_bbox[2] - space_bbox[0])
             word_metrics.append((clean_word, current_font, current_color, w))
             total_line_width += w
             if has_end: bold_mode = False
             
         if align == "center":
             x = (width - total_line_width) // 2
-        else: # left
-            x = 100
+        else:
+            x = 90
             
-        for text, font, color, w in word_metrics:
-            draw.text((x, y), text, font=font, fill=color)
+        for text_str, font, color, w in word_metrics:
+            draw.text((x, y), text_str, font=font, fill=color)
             x += w
             
         y += int(line_height * line_spacing)
@@ -270,33 +297,50 @@ def draw_styled_text_lines(draw, lines, font_bold, font_reg, start_y, align="cen
 def draw_bullet_points(draw, bullets, font, start_y, width=1080):
     y = start_y
     bullet_char = "•"
-    bullet_margin = 150
-    text_margin = 200
+    bullet_margin = 90
+    text_margin = 150
+    max_width = width - text_margin - 90
     
     bbox_height = draw.textbbox((0, 0), "T", font=font)
     line_height = bbox_height[3] - bbox_height[1]
     
     for point in bullets:
-        # Draw Gold Bullet
+        words = point.split(' ')
+        lines = []
+        current_line = []
+        current_w = 0
+        for w in words:
+            w_box = draw.textbbox((0,0), w + " ", font=font)
+            w_width = w_box[2] - w_box[0]
+            if current_w + w_width > max_width and current_line:
+                lines.append(" ".join(current_line))
+                current_line = [w]
+                current_w = w_width
+            else:
+                current_line.append(w)
+                current_w += w_width
+        if current_line: lines.append(" ".join(current_line))
+        
         draw.text((bullet_margin, y), bullet_char, font=font, fill=COLOR_GOLD)
-        # Draw White Text
-        draw.text((text_margin, y), point, font=font, fill=COLOR_WHITE)
-        y += int(line_height * 1.8)
+        for line in lines:
+            draw.text((text_margin, y), line, font=font, fill=COLOR_WHITE)
+            y += int(line_height * 1.2)
+        y += int(line_height * 0.6)
     return y
 
 def create_slides(content, slide_image_paths):
     print("\nGenerating slide images with Premium Presentation Layout...")
     try:
         font_dir = "/usr/share/fonts/truetype/roboto/"
-        font_headline_bold = ImageFont.truetype(os.path.join(font_dir, "Roboto-Black.ttf"), 120)
-        font_headline_reg = ImageFont.truetype(os.path.join(font_dir, "Roboto-Bold.ttf"), 120)
-        font_sub = ImageFont.truetype(os.path.join(font_dir, "Roboto-Medium.ttf"), 55)
+        font_headline_bold = ImageFont.truetype(os.path.join(font_dir, "Roboto-Black.ttf"), 95)
+        font_headline_reg = ImageFont.truetype(os.path.join(font_dir, "Roboto-Bold.ttf"), 95)
+        font_sub = ImageFont.truetype(os.path.join(font_dir, "Roboto-Medium.ttf"), 48)
         font_brand = ImageFont.truetype(os.path.join(font_dir, "Roboto-Bold.ttf"), 28)
     except:
         print("Using fallback Arial fonts for local test")
         try:
-            font_headline_bold = font_headline_reg = ImageFont.truetype("arialbd.ttf", 120)
-            font_sub = ImageFont.truetype("arial.ttf", 55)
+            font_headline_bold = font_headline_reg = ImageFont.truetype("arialbd.ttf", 95)
+            font_sub = ImageFont.truetype("arial.ttf", 48)
             font_brand = ImageFont.truetype("arialbd.ttf", 28)
         except:
             font_headline_bold = font_headline_reg = font_sub = font_brand = ImageFont.load_default()
@@ -322,37 +366,30 @@ def create_slides(content, slide_image_paths):
         slide = Image.alpha_composite(bg.convert("RGBA"), overlay)
         draw = ImageDraw.Draw(slide)
         
-        # Draw brand/page numbers
         draw.text((100, 50), "TECH NEWS TODAY", font=font_brand, fill=(255, 255, 255, 180))
         num_text = f"{idx+1:02d} / {len(slides_info):02d}"
         num_w = draw.textbbox((0,0), num_text, font=font_brand)[2]
         draw.text((width - num_w - 100, 50), num_text, font=font_brand, fill=(255, 255, 255, 180))
 
-        # Typography
         headline_text = slide_info["headline"]
-        head_lines = headline_text.split('\n') if '\n' in headline_text else [headline_text] # Simple wrap for now
         
         if idx == 0:
-            # Slide 1: Cover (Left Aligned)
             current_y = 150
-            current_y = draw_styled_text_lines(draw, head_lines, font_headline_bold, font_headline_reg, current_y, align="left", line_spacing=1.2)
+            current_y = draw_styled_text_lines(draw, headline_text, font_headline_bold, font_headline_reg, current_y, align="left", line_spacing=1.2)
             current_y += 30
-            draw.text((100, current_y), slide_info.get("subtext", ""), font=font_sub, fill=COLOR_WHITE)
+            draw_styled_text_lines(draw, slide_info.get("subtext", ""), font_sub, font_sub, current_y, align="left")
             
         elif idx in [2, 3] and "bullet_points" in slide_info:
-            # Slides 3 & 4: Centered Headline, Left-aligned Bullet Points
             current_y = 150
-            current_y = draw_styled_text_lines(draw, head_lines, font_headline_bold, font_headline_reg, current_y, align="center", line_spacing=1.2)
+            current_y = draw_styled_text_lines(draw, headline_text, font_headline_bold, font_headline_reg, current_y, align="center", line_spacing=1.2)
             current_y += 80
             draw_bullet_points(draw, slide_info["bullet_points"], font_sub, current_y)
             
         else:
-            # Slides 2 & 5: Fully Centered
             current_y = 200
-            current_y = draw_styled_text_lines(draw, head_lines, font_headline_bold, font_headline_reg, current_y, align="center", line_spacing=1.2)
+            current_y = draw_styled_text_lines(draw, headline_text, font_headline_bold, font_headline_reg, current_y, align="center", line_spacing=1.2)
             current_y += 60
-            sub_w = draw.textbbox((0,0), slide_info.get("subtext", ""), font=font_sub)[2]
-            draw.text(((width - sub_w)//2, current_y), slide_info.get("subtext", ""), font=font_sub, fill=COLOR_WHITE)
+            draw_styled_text_lines(draw, slide_info.get("subtext", ""), font_sub, font_sub, current_y, align="center")
 
         out_path = f"slide_{idx+1}.png"
         slide.convert("RGB").save(out_path)
