@@ -164,6 +164,7 @@ def get_valid_unsplash_image(search_queries, slide_context):
                     print(f"Evaluating candidate image: {img_url}")
                     temp_path = f"temp_{img_id}.jpg"
                     urllib.request.urlretrieve(img_url, temp_path)
+                    time.sleep(5) # Prevent 15 RPM free tier limit!
                     score = validate_image_with_gemini(temp_path, slide_context)
                     if score >= 75: # Lowered threshold slightly to ensure we get a match
                         print(f"ACCEPTED Image {img_id}")
