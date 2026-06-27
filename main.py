@@ -104,7 +104,7 @@ Output ONLY raw JSON using this schema:
         )
         return json.loads(response.text)
 
-    models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash']
+    models = ['gemini-3.0-flash-live', 'gemini-2.5-flash', 'gemini-2.5-flash-lite']
     try:
         return run_with_failover("News Generation & Keyword Extraction", models, exec_func)
     except Exception as e:
@@ -131,7 +131,7 @@ Output ONLY raw JSON format: {{"score": 85, "reason": "Clear photo, highly relev
         print(f"Validation Details: {validation.get('score')} | {validation.get('reason')}")
         return validation.get('score', 0)
 
-    models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash']
+    models = ['gemini-3.0-flash-live', 'gemini-2.5-flash-lite', 'gemini-2.5-flash']
     try:
         return run_with_failover("Image Relevance Validation", models, exec_func)
     except Exception as e:
@@ -157,7 +157,7 @@ Output ONLY raw JSON format: {"x": 80, "y": 600, "w": 920, "h": 400}"""
         )
         return json.loads(response.text)
 
-    models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash']
+    models = ['gemini-3.0-flash-live', 'gemini-2.5-flash-lite', 'gemini-2.5-flash']
     try:
         data = run_with_failover("Layout Reasoning", models, exec_func)
         print(f"Calculated Safe Zone: {data}")
@@ -177,7 +177,7 @@ def rewrite_text(text, target_words):
         )
         return response.text.strip()
 
-    models = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.0-flash']
+    models = ['gemini-3.0-flash-live', 'gemini-2.5-flash-lite', 'gemini-2.5-flash']
     try:
         new_text = run_with_failover("Typography Rewriting", models, exec_func)
         print(f"Rewrote to: {new_text}")
