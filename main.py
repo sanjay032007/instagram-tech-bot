@@ -18,6 +18,7 @@ UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY")
 IG_ACCESS_TOKEN = os.environ.get("IG_ACCESS_TOKEN")
 IG_ACCOUNT_ID = os.environ.get("IG_ACCOUNT_ID")
 HISTORY_FILE = "used_images.txt"
+NEWS_HISTORY_FILE = "used_news.txt"
 
 # Colors
 COLOR_WHITE = (255, 255, 255, 255)
@@ -34,12 +35,33 @@ def save_history(history):
         for item in history[-50:]:
             f.write(f"{item}\n")
 
+def load_news_history():
+    if not os.path.exists(NEWS_HISTORY_FILE):
+        return []
+    with open(NEWS_HISTORY_FILE, "r", encoding="utf-8") as f:
+        return [line.strip() for line in f.readlines() if line.strip()]
+
+def save_news_history(history):
+    with open(NEWS_HISTORY_FILE, "w", encoding="utf-8") as f:
+        for item in history[-50:]:
+            f.write(f"{item}\n")
+
 def get_latest_news():
     print("Fetching top tech news from RSS...")
+    news_history = load_news_history()
     feed = feedparser.parse('https://techcrunch.com/feed/')
     news_items = []
-    for entry in feed.entries[:10]:
-        news_items.append(f"Title: {entry.title}\nSummary: {entry.get('summary', '')}")
+    
+    for entry in feed.entries:
+        if entry.title.strip() not in news_history:
+            news_items.append(f"Title: {entry.title}\nSummary: {entry.get('summary', '')}")
+            if len(news_items) >= 10:
+                break
+                
+    if not news_items:
+        print("No new unposted news found! Exiting to save quota.")
+        sys.exit(0)
+        
     return "\n\n".join(news_items)
 
 @retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
@@ -87,6 +109,7 @@ For EACH slide, generate 3 highly specific 'search_queries' for Unsplash. The qu
 
 Output ONLY raw JSON using this schema:
 {
+  "original_title": "exact title of the article you selected",
   "news_topic": "string",
   "slides": [
     {
@@ -468,7 +491,12 @@ if __name__ == "__main__":
             if url: urls.append(url)
             
         if len(urls) == len(final_slides):
-            post_to_instagram(urls, content['caption'])
+            success = post_to_instagram(urls, content['caption'])
+            if success:
+                # Save the article title so we never post it again
+                news_history = load_news_history()
+                news_history.append(content.get('original_title', '').strip())
+                save_news_history(news_history)
         else:
             print("Failed to upload all images.")
             sys.exit(1)

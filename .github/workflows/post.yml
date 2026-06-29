@@ -39,12 +39,12 @@ jobs:
         IG_ACCOUNT_ID: ${{ secrets.IG_ACCOUNT_ID }}
       run: python main.py
 
-    - name: Commit Image History
+    - name: Commit history tracking files
       run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add used_images.txt || true
-        git commit -m "Update image history [skip ci]" || true
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add used_images.txt used_news.txt || true
+        git commit -m "Update used images and news history" || echo "No changes to commit"
         git push
 
     - name: Close Issue (if triggered by Slack/Issue)
