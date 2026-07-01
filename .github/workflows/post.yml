@@ -47,6 +47,13 @@ jobs:
         git commit -m "Update used images and news history" || echo "No changes to commit"
         git push
 
+    - name: Send Slack notification
+      if: success()
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      run: |
+        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\"✅ Instagram post published successfully!\"}" $SLACK_WEBHOOK_URL
+
     - name: Close Issue (if triggered by Slack/Issue)
       if: github.event_name == 'issues'
       env:
