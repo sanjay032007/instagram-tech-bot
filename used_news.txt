@@ -18,3 +18,4 @@ The ‘first’ AI-run ransomware attack still needed a human
 Savi’s app aims to protect consumers from realistic AI scams like kidnappers demanding ransom
 Apple to produce Made in America wireless chips with Broadcom
 SpaceXAI releases Grok 4.5, which Elon describes as an ‘Opus-class model’
+Anthropic, OpenAI, and SpaceX are bigger than the last 25 years of tech exits
