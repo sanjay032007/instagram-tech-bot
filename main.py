@@ -95,32 +95,52 @@ def generate_post_content(news_text):
     print("Sending news to Gemini API to extract entities and generate slides...")
     
     def exec_func(client, model):
-        system_prompt = """You are an expert Instagram tech news curator. 
-Pick the single most viral, breaking, or important story. Create a 5-slide carousel presentation in an Apple/Nvidia keynote style.
+        system_prompt = """You are an expert Instagram tech news curator.
+Pick the single most viral, breaking, or important story from the provided news.
 
-CRITICAL TEXT RULES:
-- Slide 1 (Cover): Headline max 3 lines. Subtext max 1 short line.
-- Slide 2 (Context): Headline is a short question (e.g., "WHAT IS IT?"). Subtext is 1 short sentence.
-- Slides 3 & 4 (Details): Headline is short. YOU MUST PROVIDE EXACTLY 3 BULLET POINTS. Each bullet point must be 3-6 words maximum.
-- Slide 5 (CTA): Headline is short CTA. Subtext asks a question for comments.
-- You MUST use ** tags to wrap words in the headline that should be colored GOLD. Example: NVIDIA JUST\n**LAUNCHED**\n**A NEW AI CHIP**
+Create an Instagram carousel with 3 to 7 slides maximum (NEVER more than 7).
+Decide the number of slides based on how complex and content-rich the topic is:
+- Simple news (1 clear fact): 3-4 slides
+- Medium topic (a few angles): 4-5 slides
+- Complex/rich topic (many details, stats, comparisons): 6-7 slides
 
-For EACH slide, generate 3 highly specific 'search_queries' for Unsplash. The queries MUST be deeply related to the specific slide topic (e.g., if the news is about a microchip, search for "microchip macro", "silicon wafer", "circuit board dark"). Do not use generic terms like "technology" or "business". Prioritize dark, moody, or cinematic technical photography.
+SLIDE STRUCTURE RULES:
+- Slide 1: ALWAYS type "cover" — Large impactful headline, short subtext.
+- Last slide: ALWAYS type "cta" — Call-to-action headline, subtext asks a question for comments.
+- Middle slides: Choose the BEST type for each slide from the options below based on the topic.
 
-Output ONLY raw JSON using this schema:
+SLIDE TYPES AND THEIR RULES:
+1. "cover"    — Slide 1 only. Headline: max 3 lines, bold. Subtext: max 1 short line.
+2. "context"  — A short question headline (e.g., "WHAT IS IT?", "WHY DOES IT MATTER?"). Subtext: 1 clear sentence.
+3. "bullets"  — Headline is short. Provide EXACTLY 3 bullet_points. Each bullet: 3-7 words max.
+4. "stat"     — A big impressive number/stat as headline (e.g., "$40B", "10x FASTER"). Subtext: what the stat means.
+5. "quote"    — A powerful direct quote or key statement as headline. Subtext: who said it or context.
+6. "comparison" — Headline like "BEFORE VS AFTER" or "OLD VS NEW". bullet_points: provide EXACTLY 2, one per side.
+7. "cta"      — Last slide only. Headline: short call-to-action (e.g., "FOLLOW FOR MORE"). Subtext: engaging question.
+
+CRITICAL FORMATTING RULES:
+- Use ** tags around words in the headline that should be highlighted in GOLD color.
+  Example: THE FUTURE OF\n**ARTIFICIAL**\n**INTELLIGENCE**
+- Keep all text concise. No long paragraphs.
+- For EACH slide, generate 3 highly specific Unsplash search queries deeply related to that slide's topic.
+  Prioritize dark, cinematic, moody technical photography. Avoid generic terms like "technology" or "business".
+
+Output ONLY raw JSON using this exact schema:
 {
   "original_title": "exact title of the article you selected",
   "news_topic": "string",
   "slides": [
     {
+      "slide_type": "cover|context|bullets|stat|quote|comparison|cta",
       "headline": "string",
       "subtext": "string",
-      "bullet_points": ["point 1", "point 2", "point 3"], // Only include for slides 3 & 4!
+      "bullet_points": ["point 1", "point 2", "point 3"],
       "search_queries": ["query1", "query2", "query3"]
     }
   ],
   "caption": "string"
-}"""
+}
+Note: bullet_points is only required for slide_type 'bullets' and 'comparison'. Omit it for all other types."""
         response = client.models.generate_content(
             model=model,
             contents=news_text,
@@ -352,26 +372,30 @@ def draw_bullet_points(draw, bullets, font, start_y, width=1080):
     return y
 
 def create_slides(content, slide_image_paths):
-    print("\nGenerating slide images with Premium Presentation Layout...")
+    print("\nGenerating slide images with Premium Adaptive Layout...")
     try:
         font_dir = "/usr/share/fonts/truetype/roboto/"
         font_headline_bold = ImageFont.truetype(os.path.join(font_dir, "Roboto-Black.ttf"), 95)
-        font_headline_reg = ImageFont.truetype(os.path.join(font_dir, "Roboto-Bold.ttf"), 95)
-        font_sub = ImageFont.truetype(os.path.join(font_dir, "Roboto-Medium.ttf"), 48)
-        font_brand = ImageFont.truetype(os.path.join(font_dir, "Roboto-Bold.ttf"), 28)
+        font_headline_reg  = ImageFont.truetype(os.path.join(font_dir, "Roboto-Bold.ttf"),  95)
+        font_stat          = ImageFont.truetype(os.path.join(font_dir, "Roboto-Black.ttf"), 160)
+        font_sub           = ImageFont.truetype(os.path.join(font_dir, "Roboto-Medium.ttf"), 48)
+        font_quote         = ImageFont.truetype(os.path.join(font_dir, "Roboto-Medium.ttf"), 56)
+        font_brand         = ImageFont.truetype(os.path.join(font_dir, "Roboto-Bold.ttf"),   28)
     except:
         print("Using fallback Arial fonts for local test")
         try:
-            font_headline_bold = font_headline_reg = ImageFont.truetype("arialbd.ttf", 95)
-            font_sub = ImageFont.truetype("arial.ttf", 48)
+            font_headline_bold = font_headline_reg = font_stat = ImageFont.truetype("arialbd.ttf", 95)
+            font_sub = font_quote = ImageFont.truetype("arial.ttf", 48)
             font_brand = ImageFont.truetype("arialbd.ttf", 28)
         except:
-            font_headline_bold = font_headline_reg = font_sub = font_brand = ImageFont.load_default()
+            font_headline_bold = font_headline_reg = font_stat = font_sub = font_quote = font_brand = ImageFont.load_default()
 
     slides_info = content['slides']
+    # Cap at 7 slides for safety
+    slides_info = slides_info[:7]
     final_slide_paths = []
     width, height = 1080, 1080
-    
+
     for idx, slide_info in enumerate(slides_info):
         bg_path = slide_image_paths[idx]
         try:
@@ -383,41 +407,119 @@ def create_slides(content, slide_image_paths):
         except Exception as e:
             print(f"Error loading background {bg_path}: {e}")
             bg = Image.new("RGB", (width, height), (20, 20, 20))
-            
-        # Draw Gradient Overlay
+
         overlay = draw_gradient_overlay(width, height)
-        slide = Image.alpha_composite(bg.convert("RGBA"), overlay)
-        draw = ImageDraw.Draw(slide)
-        
+        slide   = Image.alpha_composite(bg.convert("RGBA"), overlay)
+        draw    = ImageDraw.Draw(slide)
+
+        # ── Brand bar ──────────────────────────────────────────────
         draw.text((100, 50), "TECH NEWS TODAY", font=font_brand, fill=(255, 255, 255, 180))
         num_text = f"{idx+1:02d} / {len(slides_info):02d}"
-        num_w = draw.textbbox((0,0), num_text, font=font_brand)[2]
+        num_w = draw.textbbox((0, 0), num_text, font=font_brand)[2]
         draw.text((width - num_w - 100, 50), num_text, font=font_brand, fill=(255, 255, 255, 180))
 
-        headline_text = slide_info["headline"]
-        
-        if idx == 0:
+        headline_text = slide_info.get("headline", "")
+        subtext       = slide_info.get("subtext", "")
+        bullets       = slide_info.get("bullet_points", [])
+        slide_type    = slide_info.get("slide_type", "context")
+
+        # ── COVER layout (slide 1) ──────────────────────────────────
+        if slide_type == "cover":
             current_y = 150
             current_y = draw_styled_text_lines(draw, headline_text, font_headline_bold, font_headline_reg, current_y, align="left", line_spacing=1.2)
+            current_y += 35
+            # Gold accent line
+            draw.rectangle([(90, current_y), (90 + 120, current_y + 5)], fill=COLOR_GOLD)
             current_y += 30
-            draw_styled_text_lines(draw, slide_info.get("subtext", ""), font_sub, font_sub, current_y, align="left")
-            
-        elif idx in [2, 3] and "bullet_points" in slide_info:
+            draw_styled_text_lines(draw, subtext, font_sub, font_sub, current_y, align="left")
+
+        # ── CONTEXT layout (question/intro) ─────────────────────────
+        elif slide_type == "context":
+            current_y = 220
+            # Small label above
+            draw.text((width // 2 - 60, current_y - 60), "◆ CONTEXT", font=font_brand, fill=COLOR_GOLD)
+            current_y = draw_styled_text_lines(draw, headline_text, font_headline_bold, font_headline_reg, current_y, align="center", line_spacing=1.2)
+            current_y += 50
+            draw_styled_text_lines(draw, subtext, font_sub, font_sub, current_y, align="center")
+
+        # ── BULLETS layout (detail points) ──────────────────────────
+        elif slide_type == "bullets":
             current_y = 150
             current_y = draw_styled_text_lines(draw, headline_text, font_headline_bold, font_headline_reg, current_y, align="center", line_spacing=1.2)
             current_y += 80
-            draw_bullet_points(draw, slide_info["bullet_points"], font_sub, current_y)
-            
+            draw_bullet_points(draw, bullets if bullets else [subtext], font_sub, current_y)
+
+        # ── STAT layout (big number) ─────────────────────────────────
+        elif slide_type == "stat":
+            # Centered huge stat
+            stat_bbox = draw.textbbox((0, 0), headline_text.replace('**', ''), font=font_stat)
+            stat_w = stat_bbox[2] - stat_bbox[0]
+            stat_x = (width - stat_w) // 2
+            draw.text((stat_x, 280), headline_text.replace('**', ''), font=font_stat, fill=COLOR_GOLD)
+            current_y = 280 + (stat_bbox[3] - stat_bbox[1]) + 40
+            # Divider line
+            draw.rectangle([(width//2 - 80, current_y), (width//2 + 80, current_y + 4)], fill=COLOR_WHITE)
+            current_y += 30
+            draw_styled_text_lines(draw, subtext, font_sub, font_sub, current_y, align="center")
+
+        # ── QUOTE layout (powerful statement) ───────────────────────
+        elif slide_type == "quote":
+            current_y = 200
+            # Opening quote mark
+            draw.text((90, current_y - 30), "\u201c", font=font_stat, fill=COLOR_GOLD)
+            current_y += 60
+            current_y = draw_styled_text_lines(draw, headline_text, font_quote, font_quote, current_y, align="center", line_spacing=1.3)
+            # Closing quote mark
+            close_bbox = draw.textbbox((0, 0), "\u201d", font=font_stat)
+            draw.text((width - 90 - (close_bbox[2] - close_bbox[0]), current_y - 20), "\u201d", font=font_stat, fill=COLOR_GOLD)
+            current_y += 30
+            draw.rectangle([(width//2 - 60, current_y), (width//2 + 60, current_y + 4)], fill=COLOR_GOLD)
+            current_y += 25
+            draw_styled_text_lines(draw, subtext, font_sub, font_sub, current_y, align="center")
+
+        # ── COMPARISON layout (before vs after / old vs new) ─────────
+        elif slide_type == "comparison":
+            mid_x = width // 2
+            current_y = 150
+            current_y = draw_styled_text_lines(draw, headline_text, font_headline_bold, font_headline_reg, current_y, align="center", line_spacing=1.2)
+            current_y += 40
+            # Vertical divider
+            draw.rectangle([(mid_x - 2, current_y), (mid_x + 2, height - 100)], fill=COLOR_GOLD)
+            # Left side label
+            if len(bullets) >= 1:
+                draw.text((90, current_y + 10), "BEFORE", font=font_brand, fill=COLOR_GOLD)
+                draw_styled_text_lines(draw, bullets[0], font_sub, font_sub, current_y + 60, align="left")
+            # Right side label
+            if len(bullets) >= 2:
+                right_label_bbox = draw.textbbox((0, 0), "AFTER", font=font_brand)
+                right_label_w = right_label_bbox[2] - right_label_bbox[0]
+                draw.text((width - 90 - right_label_w, current_y + 10), "AFTER", font=font_brand, fill=COLOR_GOLD)
+                # Render right text from mid+30
+                draw_styled_text_lines(draw, bullets[1], font_sub, font_sub, current_y + 60, align="left")
+
+        # ── CTA layout (last slide) ──────────────────────────────────
+        elif slide_type == "cta":
+            current_y = 220
+            # Decorative top bar
+            draw.rectangle([(width//2 - 100, current_y - 30), (width//2 + 100, current_y - 25)], fill=COLOR_GOLD)
+            current_y = draw_styled_text_lines(draw, headline_text, font_headline_bold, font_headline_reg, current_y, align="center", line_spacing=1.2)
+            current_y += 50
+            draw_styled_text_lines(draw, subtext, font_sub, font_sub, current_y, align="center")
+            # Follow prompt at bottom
+            draw.text((90, height - 120), "@techNewsToday  •  Follow for daily AI news", font=font_brand, fill=COLOR_GOLD)
+
+        # ── Fallback (unknown type) ──────────────────────────────────
         else:
             current_y = 200
             current_y = draw_styled_text_lines(draw, headline_text, font_headline_bold, font_headline_reg, current_y, align="center", line_spacing=1.2)
             current_y += 60
-            draw_styled_text_lines(draw, slide_info.get("subtext", ""), font_sub, font_sub, current_y, align="center")
+            draw_styled_text_lines(draw, subtext, font_sub, font_sub, current_y, align="center")
 
         out_path = f"slide_{idx+1}.png"
         slide.convert("RGB").save(out_path)
         final_slide_paths.append(out_path)
-        
+        print(f"  ✓ Slide {idx+1} [{slide_type}] saved → {out_path}")
+
     return final_slide_paths
 
 def upload_image(file_path):
