@@ -14,6 +14,8 @@ from tenacity import retry, wait_fixed, stop_after_attempt
 
 # --- Config & Secrets ---
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GEMINI_API_KEY_2 = os.environ.get("GEMINI_API_KEY_2")
+API_KEYS = [k for k in [GEMINI_API_KEY, GEMINI_API_KEY_2] if k]
 UNSPLASH_ACCESS_KEY = os.environ.get("UNSPLASH_ACCESS_KEY")
 IG_ACCESS_TOKEN = os.environ.get("IG_ACCESS_TOKEN")
 IG_ACCOUNT_ID = os.environ.get("IG_ACCOUNT_ID")
@@ -66,26 +68,31 @@ def get_latest_news():
 
 @retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
 def run_with_failover(task_name, models, execution_func):
-    client = genai.Client(api_key=GEMINI_API_KEY)
+    if not API_KEYS:
+        raise ValueError("No API keys found for Gemini.")
+        
     last_exception = None
-    for model in models:
-        try:
-            result = execution_func(client, model)
-            print(f"[GEMINI] Task: {task_name} | Model Used: {model}")
-            return result
-        except Exception as e:
-            err_str = str(e).lower()
-            if '429' in err_str or 'resource_exhausted' in err_str or 'quota' in err_str:
-                print(f"[GEMINI] Rate limited/Quota on {model}. Failing over to next model...")
-            else:
-                print(f"[GEMINI] Error on {model} ({e}). Failing over to next model...")
-            last_exception = e
-            continue
+    for api_key in API_KEYS:
+        client = genai.Client(api_key=api_key)
+        for model in models:
+            try:
+                result = execution_func(client, model)
+                print(f"[GEMINI] Task: {task_name} | Model Used: {model}")
+                return result
+            except Exception as e:
+                err_str = str(e).lower()
+                if '429' in err_str or 'resource_exhausted' in err_str or 'quota' in err_str:
+                    print(f"[GEMINI] Rate limited/Quota on {model}. Failing over to next model...")
+                else:
+                    print(f"[GEMINI] Error on {model} ({e}). Failing over to next model...")
+                last_exception = e
+                continue
+        print(f"[GEMINI] All models exhausted on current API key. Switching to next key (if any)...")
             
-    print(f"[GEMINI] All configured models exhausted for task '{task_name}'.")
+    print(f"[GEMINI] All configured models and API keys exhausted for task '{task_name}'.")
     err_str = str(last_exception).lower()
     if '429' in err_str or 'quota' in err_str or 'resource_exhausted' in err_str:
-        print("CRITICAL: Daily Quota completely exhausted across all models. Aborting to prevent wasted retries.")
+        print("CRITICAL: Daily Quota completely exhausted across all models AND keys. Aborting to prevent wasted retries.")
         sys.exit(1)
         
     print("Triggering backoff retry for non-quota error...")
@@ -230,29 +237,31 @@ def get_valid_unsplash_image(search_queries, slide_context):
 @retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
 def generate_fallback_image(slide_context):
     print(f"\n--- FALLBACK STAGE: Generating AI Image for '{slide_context}' ---")
-    if not GEMINI_API_KEY: return None
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    try:
-        result = client.models.generate_images(
-            model='imagen-3.0-generate-001',
-            prompt=f"A photorealistic, dark, cinematic, editorial illustration about: {slide_context}. Professional presentation background, lots of negative space at the top.",
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                output_mime_type="image/jpeg",
-                aspect_ratio="1:1"
+    if not API_KEYS: return None
+    
+    for api_key in API_KEYS:
+        client = genai.Client(api_key=api_key)
+        try:
+            result = client.models.generate_images(
+                model='imagen-3.0-generate-001',
+                prompt=f"A photorealistic, dark, cinematic, editorial illustration about: {slide_context}. Professional presentation background, lots of negative space at the top.",
+                config=types.GenerateImagesConfig(
+                    number_of_images=1,
+                    output_mime_type="image/jpeg",
+                    aspect_ratio="1:1"
+                )
             )
-        )
-        for generated_image in result.generated_images:
-            image = Image.open(io.BytesIO(generated_image.image.image_bytes))
-            path = f'fallback_{int(time.time())}.jpg'
-            image.save(path)
-            history = load_history()
-            history.append(path.split('.')[0])
-            save_history(history)
-            return path
-    except Exception as e:
-        print(f"Fallback Imagen error: {e}")
-        # Don't raise, just return None if Imagen is disabled for this key
+            for generated_image in result.generated_images:
+                image = Image.open(io.BytesIO(generated_image.image.image_bytes))
+                path = f'fallback_{int(time.time())}.jpg'
+                image.save(path)
+                history = load_history()
+                history.append(path.split('.')[0])
+                save_history(history)
+                return path
+        except Exception as e:
+            print(f"Fallback Imagen error with key: {e}")
+            continue
     return None
 
 def draw_gradient_overlay(width, height):

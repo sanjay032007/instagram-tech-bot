@@ -38,6 +38,7 @@ jobs:
     - name: Run Automation Script
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
         UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
         IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
         IG_ACCOUNT_ID: ${{ secrets.IG_ACCOUNT_ID }}
