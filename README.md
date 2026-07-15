@@ -40,4 +40,3 @@ python main.py
 Whenever you make changes (e.g., adjust the prompt, modify the word‑wrapping logic, or tweak the news‑tracking behaviour) simply commit and push – the GitHub workflow will pick up the latest version on the next trigger.
 
 ---
-*Built with ❤️ by the **Instagram‑Tech‑Bot** community. Feel free to open issues or submit pull requests!*
