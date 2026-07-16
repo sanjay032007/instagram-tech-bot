@@ -310,8 +310,9 @@ def draw_styled_text_lines(draw, text, font_bold, font_reg, start_y, align="cent
             final_lines.append(" ".join(current_line_words))
             
     y = start_y
-    bbox_height_test = draw.textbbox((0, 0), "TEST", font=font_bold)
-    line_height = bbox_height_test[3] - bbox_height_test[1]
+    ascent, descent = font_bold.getmetrics()
+    line_height = ascent + descent
+
     
     for line in final_lines:
         words = line.split(' ')
@@ -353,8 +354,8 @@ def draw_bullet_points(draw, bullets, font, start_y, width=1080):
     text_margin = 150
     max_width = width - text_margin - 90
     
-    bbox_height = draw.textbbox((0, 0), "T", font=font)
-    line_height = bbox_height[3] - bbox_height[1]
+    ascent, descent = font.getmetrics()
+    line_height = ascent + descent
     
     for point in bullets:
         words = point.split(' ')
