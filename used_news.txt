@@ -31,3 +31,4 @@ Spotify expands its AI push with a ChatGPT-like music assistant
 Apple opens its new Siri AI to everyone with the iOS 27 public beta
 Anthropic, Blackstone bet the next trillion-dollar AI business is implementation, not just models
 Apple Intelligence approved for launch in China with Alibaba and Baidu
+Google Vids now lets you star in your own AI videos
