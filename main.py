@@ -471,9 +471,12 @@ def create_slides(content, slide_image_paths):
     slides_info = content['slides'][:7]
     final_slide_paths = []
     W, H = 1080, 1080
-    MARGIN  = 90
-    BRAND_H = 100   # vertical space reserved for brand bar at top
-    FOOTER_H = 110  # reserved at bottom for footer / safe zone
+    MARGIN   = 90       # left/right margin
+    TOP_PAD  = 80       # space at top for counter
+    BOT_PAD  = 80       # safe zone at bottom
+    CONTENT_TOP    = TOP_PAD + 30
+    CONTENT_BOTTOM = H - BOT_PAD
+    CONTENT_H      = CONTENT_BOTTOM - CONTENT_TOP
 
     for idx, slide_info in enumerate(slides_info):
         # ── Background ───────────────────────────────────────────────
@@ -488,235 +491,224 @@ def create_slides(content, slide_image_paths):
             print(f"  BG error {bg_path}: {e}")
             bg = Image.new("RGB", (W, H), (18, 18, 22))
 
-        # Strong dark overlay so text is always readable
-        dark = Image.new("RGBA", (W, H), (0, 0, 0, 175))
+        # Dark overlay for readability
+        dark = Image.new("RGBA", (W, H), (0, 0, 0, 185))
         slide = Image.alpha_composite(bg.convert("RGBA"), dark)
         draw  = ImageDraw.Draw(slide)
 
-        # ── Brand bar ────────────────────────────────────────────────
-        draw.text((MARGIN + 10, 44), "TECH NEWS TODAY",
-                  font=font_brand, fill=(255, 255, 255, 160))
+        # ── Slide counter — top right only, no other branding ────────
         num_text = f"{idx+1:02d} / {len(slides_info):02d}"
         nw = draw.textbbox((0, 0), num_text, font=font_brand)[2]
-        draw.text((W - MARGIN - nw - 10, 44), num_text,
-                  font=font_brand, fill=(255, 255, 255, 160))
-        # thin gold bar under brand
-        draw.rectangle([(MARGIN, 82), (W - MARGIN, 84)], fill=(235, 203, 107, 80))
+        draw.text((W - MARGIN - nw, 36), num_text,
+                  font=font_brand, fill=(255, 255, 255, 130))
 
         headline_text = slide_info.get("headline", "").strip()
         subtext       = slide_info.get("subtext",  "").strip()
         bullets       = slide_info.get("bullet_points", [])
         slide_type    = slide_info.get("slide_type", "context")
 
-        # Content area: between brand bar and footer
-        CONTENT_TOP    = BRAND_H + 20
-        CONTENT_BOTTOM = H - FOOTER_H
-        CONTENT_H      = CONTENT_BOTTOM - CONTENT_TOP
-
-        # Pick headline font (auto-scale so it never overflows)
-        hl_bold, hl_reg = _auto_font(
-            font_hl_xl, font_hl_lg, font_hl_md,
-            draw, headline_text, MARGIN, W - MARGIN, max_lines=3
-        ), None
-        # Pair reg font with bold
+        # Auto-scale headline font so it always fits in ≤3 lines
+        hl_bold = _auto_font(font_hl_xl, font_hl_lg, font_hl_md,
+                             draw, headline_text, MARGIN, W - MARGIN, max_lines=3)
         if hl_bold is font_hl_xl:   hl_reg = font_hl_xl_r
         elif hl_bold is font_hl_lg: hl_reg = font_hl_lg_r
         else:                        hl_reg = font_hl_md_r
 
-        lh_hl = _line_height(hl_bold)
-        hl_lines = _wrap_text(draw, headline_text, hl_bold, hl_reg, MARGIN, W - MARGIN)
-        hl_block_h = int(lh_hl * 1.25 * len(hl_lines))
+        lh_hl  = _line_height(hl_bold)
+        hl_lines  = _wrap_text(draw, headline_text, hl_bold, hl_reg, MARGIN, W - MARGIN)
+        hl_block_h = int(lh_hl * 1.3 * len(hl_lines))
+        lh_sub    = _line_height(font_sub_lg)
 
-        lh_sub = _line_height(font_sub_lg)
-
-        # ── COVER layout ─────────────────────────────────────────────
+        # ── COVER — left-aligned ──────────────────────────────────────
         if slide_type == "cover":
-            # Headline + gold bar + subtext, vertically centered in content area
-            accent_h = 8
             sub_lines = _wrap_text(draw, subtext, font_sub_lg, font_sub_lg, MARGIN, W - MARGIN)
-            sub_h = int(lh_sub * 1.2 * len(sub_lines)) if sub_lines else 0
-            total_h = hl_block_h + 30 + accent_h + 24 + sub_h
-            start_y = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
+            sub_h     = int(lh_sub * 1.25 * len(sub_lines)) if sub_lines else 0
+            total_h   = hl_block_h + 28 + 6 + 22 + sub_h
+            start_y   = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
 
             ey = draw_styled_text_lines(
                 draw, headline_text, hl_bold, hl_reg,
-                start_y, align="left", line_spacing=1.25,
+                start_y, align="left", line_spacing=1.3,
                 x_start=MARGIN, x_end=W - MARGIN)
-            ey += 26
-            draw.rectangle([(MARGIN, ey), (MARGIN + 140, ey + accent_h)], fill=COLOR_GOLD)
-            ey += accent_h + 22
+            ey += 24
+            draw.rectangle([(MARGIN, ey), (MARGIN + 120, ey + 5)], fill=COLOR_GOLD)
+            ey += 22
             draw_plain_text_wrapped(draw, subtext, font_sub_lg, ey,
                                     COLOR_WHITE, align="left",
+                                    line_spacing=1.25,
                                     x_start=MARGIN, x_end=W - MARGIN)
 
-        # ── CONTEXT layout ───────────────────────────────────────────
+        # ── CONTEXT — centered ───────────────────────────────────────
         elif slide_type == "context":
-            label = "◆  CONTEXT"
-            label_h = _line_height(font_brand)
             sub_lines = _wrap_text(draw, subtext, font_sub_lg, font_sub_lg, MARGIN, W - MARGIN)
-            sub_h = int(lh_sub * 1.2 * len(sub_lines)) if sub_lines else 0
-            total_h = label_h + 32 + hl_block_h + 38 + sub_h
-            start_y = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
+            sub_h     = int(lh_sub * 1.25 * len(sub_lines)) if sub_lines else 0
+            total_h   = hl_block_h + 36 + sub_h
+            start_y   = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
 
-            lw = draw.textbbox((0, 0), label, font=font_brand)[2]
-            draw.text(((W - lw) // 2, start_y), label, font=font_brand, fill=COLOR_GOLD)
-            ey = start_y + label_h + 32
             ey = draw_styled_text_lines(
                 draw, headline_text, hl_bold, hl_reg,
-                ey, align="center", line_spacing=1.25,
+                start_y, align="center", line_spacing=1.3,
                 x_start=MARGIN, x_end=W - MARGIN)
+            draw.rectangle([(W//2 - 50, ey + 10), (W//2 + 50, ey + 13)],
+                           fill=(255, 255, 255, 60))
             ey += 36
             draw_plain_text_wrapped(draw, subtext, font_sub_lg, ey,
                                     COLOR_WHITE, align="center",
+                                    line_spacing=1.25,
                                     x_start=MARGIN, x_end=W - MARGIN)
 
-        # ── BULLETS layout ───────────────────────────────────────────
+        # ── BULLETS — center headline, left bullets ──────────────────
         elif slide_type == "bullets":
             bullet_list = bullets if bullets else [subtext]
-            # Estimate bullet block height
-            lh_b = _line_height(font_sub_lg)
+            lh_b  = _line_height(font_sub_lg)
             bul_h = sum(int(lh_b * 1.3) + int(lh_b * 0.35) for _ in bullet_list)
-            total_h = hl_block_h + 56 + bul_h
+            total_h = hl_block_h + 50 + bul_h
             start_y = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
 
             ey = draw_styled_text_lines(
                 draw, headline_text, hl_bold, hl_reg,
-                start_y, align="center", line_spacing=1.25,
+                start_y, align="center", line_spacing=1.3,
                 x_start=MARGIN, x_end=W - MARGIN)
-            draw.rectangle([(MARGIN, ey + 10), (W - MARGIN, ey + 12)],
-                           fill=(255, 255, 255, 40))
+            draw.rectangle([(MARGIN, ey + 12), (W - MARGIN, ey + 14)],
+                           fill=(255, 255, 255, 35))
             draw_bullet_points(draw, bullet_list, font_sub_lg, ey + 44,
                                x_start=MARGIN, x_end=W - MARGIN)
 
-        # ── STAT layout ──────────────────────────────────────────────
+        # ── STAT — left-aligned ──────────────────────────────────────
         elif slide_type == "stat":
             stat_text = headline_text.replace('**', '')
-            # Auto-scale stat font
+            # Auto-scale the big number font
             stat_font = font_stat
-            for sz in (150, 120, 95, 72):
+            for sz in (130, 110, 90, 70):
                 try:
                     sf = fB(sz)
-                    sw = draw.textbbox((0, 0), stat_text, font=sf)[2]
-                    if sw <= W - 2 * MARGIN:
+                    if draw.textbbox((0, 0), stat_text, font=sf)[2] <= W - 2 * MARGIN:
                         stat_font = sf
                         break
                 except:
                     pass
             stat_lh = _line_height(stat_font)
             sub_lines = _wrap_text(draw, subtext, font_sub_lg, font_sub_lg, MARGIN, W - MARGIN)
-            sub_h = int(lh_sub * 1.2 * len(sub_lines)) if sub_lines else 0
-            total_h = stat_lh + 28 + 6 + 24 + sub_h
-            start_y = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
+            sub_h     = int(lh_sub * 1.25 * len(sub_lines)) if sub_lines else 0
+            # Context line above number + number + line + description
+            ctx_lh    = _line_height(font_sub_lg)
+            total_h   = ctx_lh + 20 + stat_lh + 24 + 5 + 22 + sub_h
+            start_y   = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
 
-            sw = draw.textbbox((0, 0), stat_text, font=stat_font)[2]
-            draw.text((max(MARGIN, (W - sw) // 2), start_y),
-                      stat_text, font=stat_font, fill=COLOR_GOLD)
-            ey = start_y + stat_lh + 24
-            draw.rectangle([(W//2 - 90, ey), (W//2 + 90, ey + 5)], fill=COLOR_WHITE)
-            ey += 28
+            # Small context text above the number — left aligned
+            draw_plain_text_wrapped(draw, "Key figure", font_sub_md, start_y,
+                                    (180, 180, 180, 255), align="left",
+                                    line_spacing=1.0,
+                                    x_start=MARGIN, x_end=W - MARGIN)
+            num_y = start_y + ctx_lh + 20
+            draw.text((MARGIN, num_y), stat_text, font=stat_font, fill=COLOR_GOLD)
+            ey = num_y + stat_lh + 20
+            draw.rectangle([(MARGIN, ey), (MARGIN + 120, ey + 5)], fill=COLOR_GOLD)
+            ey += 22
             draw_plain_text_wrapped(draw, subtext, font_sub_lg, ey,
-                                    COLOR_WHITE, align="center",
+                                    COLOR_WHITE, align="left",
+                                    line_spacing=1.25,
                                     x_start=MARGIN, x_end=W - MARGIN)
 
-        # ── QUOTE layout ─────────────────────────────────────────────
+        # ── QUOTE — centered, no big quotation marks ─────────────────
         elif slide_type == "quote":
-            q_lines = _wrap_text(draw, headline_text, font_quote, font_quote, MARGIN + 40, W - MARGIN - 40)
-            q_h = int(_line_height(font_quote) * 1.35 * len(q_lines))
-            sub_lines = _wrap_text(draw, subtext, font_sub_md, font_sub_md, MARGIN, W - MARGIN)
-            sub_h = int(_line_height(font_sub_md) * 1.2 * len(sub_lines)) if sub_lines else 0
-            total_h = 80 + q_h + 46 + sub_h
-            start_y = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
+            q_lh     = _line_height(font_quote)
+            q_lines  = _wrap_text(draw, headline_text, font_quote, font_quote,
+                                  MARGIN + 30, W - MARGIN - 30)
+            q_h      = int(q_lh * 1.35 * len(q_lines))
+            attr_lh  = _line_height(font_sub_md)
+            total_h  = q_h + 30 + 4 + 20 + attr_lh
+            start_y  = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
 
-            draw.text((MARGIN, start_y), "\u201c", font=font_stat, fill=COLOR_GOLD)
-            ey = start_y + 75
             ey = draw_styled_text_lines(
                 draw, headline_text, font_quote, font_quote,
-                ey, align="center", line_spacing=1.35,
-                x_start=MARGIN + 40, x_end=W - MARGIN - 40)
-            cw = draw.textbbox((0, 0), "\u201d", font=font_stat)[2]
-            draw.text((W - MARGIN - cw, ey - 30), "\u201d", font=font_stat, fill=COLOR_GOLD)
+                start_y, align="center", line_spacing=1.35,
+                x_start=MARGIN + 30, x_end=W - MARGIN - 30)
+            ey += 26
+            draw.rectangle([(W//2 - 60, ey), (W//2 + 60, ey + 4)], fill=COLOR_GOLD)
             ey += 22
-            draw.rectangle([(W//2 - 70, ey), (W//2 + 70, ey + 4)], fill=COLOR_GOLD)
-            ey += 22
-            draw_plain_text_wrapped(draw, subtext, font_sub_md, ey,
-                                    (200, 200, 200, 255), align="center",
+            # Attribution — subtext holds "— Name, Title"
+            attr = subtext if subtext else ""
+            draw_plain_text_wrapped(draw, attr, font_sub_md, ey,
+                                    (180, 180, 180, 255), align="center",
+                                    line_spacing=1.2,
                                     x_start=MARGIN, x_end=W - MARGIN)
 
-        # ── COMPARISON layout ─────────────────────────────────────────
+        # ── COMPARISON — two columns ──────────────────────────────────
         elif slide_type == "comparison":
-            mid = W // 2
-            col_x0 = MARGIN;  col_x1 = mid - 18
-            col_x2 = mid + 18; col_x3 = W - MARGIN
-            sub_lines = _wrap_text(draw, bullets[0] if bullets else "", font_sub_md, font_sub_md, col_x0, col_x1)
-            sub2_lines= _wrap_text(draw, bullets[1] if len(bullets) > 1 else "", font_sub_md, font_sub_md, col_x2, col_x3)
-            col_h = int(_line_height(font_sub_md) * 1.3 * max(len(sub_lines), len(sub2_lines), 1))
-            total_h = hl_block_h + 36 + 44 + col_h
+            mid   = W // 2
+            cx0, cx1 = MARGIN, mid - 20
+            cx2, cx3 = mid + 20, W - MARGIN
+            bl0  = bullets[0] if bullets else ""
+            bl1  = bullets[1] if len(bullets) > 1 else ""
+            l0   = _wrap_text(draw, bl0, font_sub_md, font_sub_md, cx0, cx1)
+            l1   = _wrap_text(draw, bl1, font_sub_md, font_sub_md, cx2, cx3)
+            col_h = int(_line_height(font_sub_md) * 1.3 * max(len(l0), len(l1), 1))
+            lh_lbl = _line_height(font_brand)
+            total_h = hl_block_h + 34 + lh_lbl + 16 + col_h
             start_y = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
 
             ey = draw_styled_text_lines(
                 draw, headline_text, hl_bold, hl_reg,
-                start_y, align="center", line_spacing=1.25,
+                start_y, align="center", line_spacing=1.3,
                 x_start=MARGIN, x_end=W - MARGIN)
             ey += 30
-            # Vertical divider
-            draw.rectangle([(mid - 2, ey), (mid + 2, CONTENT_BOTTOM - 10)], fill=COLOR_GOLD)
-            lh_label = _line_height(font_brand)
-            # Before label
-            draw.text((col_x0, ey + 6), "BEFORE", font=font_brand, fill=COLOR_GOLD)
-            # After label (right-aligned in right col)
+            draw.rectangle([(mid - 2, ey), (mid + 2, CONTENT_BOTTOM)], fill=COLOR_GOLD)
+            # Column labels
+            draw.text((cx0, ey + 6), "BEFORE", font=font_brand, fill=COLOR_GOLD)
             aw = draw.textbbox((0, 0), "AFTER", font=font_brand)[2]
-            draw.text((col_x3 - aw, ey + 6), "AFTER", font=font_brand, fill=COLOR_GOLD)
-            col_y = ey + lh_label + 18
-            if bullets:
-                draw_plain_text_wrapped(draw, bullets[0], font_sub_md, col_y,
-                                        COLOR_WHITE, align="left",
-                                        x_start=col_x0, x_end=col_x1)
-            if len(bullets) > 1:
-                draw_plain_text_wrapped(draw, bullets[1], font_sub_md, col_y,
-                                        COLOR_WHITE, align="left",
-                                        x_start=col_x2, x_end=col_x3)
+            draw.text((cx3 - aw, ey + 6), "AFTER", font=font_brand, fill=COLOR_GOLD)
+            col_y = ey + lh_lbl + 18
+            draw_plain_text_wrapped(draw, bl0, font_sub_md, col_y,
+                                    COLOR_WHITE, align="left",
+                                    x_start=cx0, x_end=cx1)
+            draw_plain_text_wrapped(draw, bl1, font_sub_md, col_y,
+                                    COLOR_WHITE, align="left",
+                                    x_start=cx2, x_end=cx3)
 
-        # ── CTA layout ───────────────────────────────────────────────
+        # ── CTA — two gold lines framing centered text ────────────────
         elif slide_type == "cta":
             sub_lines = _wrap_text(draw, subtext, font_sub_lg, font_sub_lg, MARGIN, W - MARGIN)
-            sub_h = int(lh_sub * 1.2 * len(sub_lines)) if sub_lines else 0
-            total_h = 8 + 20 + hl_block_h + 40 + sub_h
-            start_y = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
+            sub_h     = int(lh_sub * 1.25 * len(sub_lines)) if sub_lines else 0
+            total_h   = 6 + 28 + hl_block_h + 28 + sub_h + 28 + 6
+            start_y   = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
 
-            draw.rectangle([(W//2 - 110, start_y), (W//2 + 110, start_y + 6)], fill=COLOR_GOLD)
-            ey = start_y + 24
+            # Top gold line
+            draw.rectangle([(W//2 - 110, start_y), (W//2 + 110, start_y + 5)], fill=COLOR_GOLD)
+            ey = start_y + 30
             ey = draw_styled_text_lines(
                 draw, headline_text, hl_bold, hl_reg,
-                ey, align="center", line_spacing=1.25,
+                ey, align="center", line_spacing=1.3,
                 x_start=MARGIN, x_end=W - MARGIN)
-            ey += 38
+            ey += 26
             draw_plain_text_wrapped(draw, subtext, font_sub_lg, ey,
                                     COLOR_WHITE, align="center",
+                                    line_spacing=1.25,
                                     x_start=MARGIN, x_end=W - MARGIN)
-            # Footer follow prompt pinned to bottom
-            draw.text((MARGIN, H - 90),
-                      "@techNewsToday  \u2022  Follow for daily tech news",
-                      font=font_brand, fill=COLOR_GOLD)
+            ey += sub_h + 26
+            # Bottom gold line
+            draw.rectangle([(W//2 - 110, ey), (W//2 + 110, ey + 5)], fill=COLOR_GOLD)
 
         # ── Fallback ─────────────────────────────────────────────────
         else:
             sub_lines = _wrap_text(draw, subtext, font_sub_lg, font_sub_lg, MARGIN, W - MARGIN)
-            sub_h = int(lh_sub * 1.2 * len(sub_lines)) if sub_lines else 0
-            total_h = hl_block_h + 44 + sub_h
-            start_y = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
+            sub_h     = int(lh_sub * 1.25 * len(sub_lines)) if sub_lines else 0
+            total_h   = hl_block_h + 40 + sub_h
+            start_y   = CONTENT_TOP + max(0, (CONTENT_H - total_h) // 2)
             ey = draw_styled_text_lines(
                 draw, headline_text, hl_bold, hl_reg,
-                start_y, align="center", line_spacing=1.25,
+                start_y, align="left", line_spacing=1.3,
                 x_start=MARGIN, x_end=W - MARGIN)
-            ey += 40
+            ey += 36
             draw_plain_text_wrapped(draw, subtext, font_sub_lg, ey,
-                                    COLOR_WHITE, align="center",
+                                    COLOR_WHITE, align="left",
+                                    line_spacing=1.25,
                                     x_start=MARGIN, x_end=W - MARGIN)
 
         out_path = f"slide_{idx+1}.png"
         slide.convert("RGB").save(out_path)
         final_slide_paths.append(out_path)
-        print(f"  \u2713 Slide {idx+1} [{slide_type}] saved \u2192 {out_path}")
+        print(f"  \u2713 Slide {idx+1} [{slide_type}] \u2192 {out_path}")
 
     return final_slide_paths
 
