@@ -43,18 +43,18 @@ An end-to-end autonomous pipeline that fetches trending technology & AI news, ge
 
 ```mermaid
 flowchart TD
-    A[Trigger: Cron / Issue / Manual] --> B[Fetch RSS News Feed]
-    B --> C{Check History}
-    C -->|Already Posted| B
-    C -->|New News Item| D[Gemini AI Failover Engine]
-    D --> E[Generate Structured Slide JSON]
-    E --> F[Image Sourcing: Unsplash / Imagen]
-    F --> G[Pillow Rendering Engine: 1080x1080 Slides]
-    G --> H[Upload Images to FreeImage.host]
-    H --> I[Instagram Graph API Carousel Builder]
-    I --> J[Poll Status until FINISHED]
-    J --> K[Publish to Instagram]
-    K --> L[Commit History to Git & Notify Slack]
+    A["Trigger: Cron / Issue / Manual"] --> B["Fetch RSS News Feed"]
+    B --> C{"Check History"}
+    C -->|"Already Posted"| B
+    C -->|"New Item"| D["Gemini AI Failover Engine"]
+    D --> E["Generate Structured Slide JSON"]
+    E --> F["Image Sourcing: Unsplash / Imagen"]
+    F --> G["Pillow Rendering Engine (1080x1080)"]
+    G --> H["Upload Images to FreeImage.host"]
+    H --> I["Instagram Graph API Carousel Builder"]
+    I --> J["Poll Status until FINISHED"]
+    J --> K["Publish to Instagram"]
+    K --> L["Commit History & Notify Slack"]
 ```
 
 1. **Trigger**: Scheduled twice daily (7:00 AM & 7:00 PM IST), on GitHub Issue creation, or manual dispatch.
