@@ -44,3 +44,4 @@ Anthropic’s landmark $1.5B copyright settlement is approved
 OpenAI says Hugging Face was breached by its pre-release models
 These are the countries moving to ban social media for children
 How OpenAI’s human mistake led to the AI-powered hack on Hugging Face
+How AI guardrails are impeding the work of offensive cybersecurity researchers
