@@ -47,3 +47,4 @@ How OpenAI’s human mistake led to the AI-powered hack on Hugging Face
 How AI guardrails are impeding the work of offensive cybersecurity researchers
 OpenAI’s new voice mode makes it to the ChatGPT desktop app
 Anduril reportedly in talks to raise funding at $100B valuation, more than 3x last year’s mark
+One fallen power line exposed a growing AI data center problem. Here’s how to fix it.
