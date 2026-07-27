@@ -1,4 +1,3 @@
-South Korean tech giants commit over $550B to ease ‘RAMageddon’
 Gemini’s personalized AI image generation is now free for US users
 Realta Fusion generates electricity directly from a fusion reaction, an apparent first
 Nvidia competitor Etched hits $5B valuation, $1B in sales for AI chip
@@ -48,3 +47,4 @@ Anduril reportedly in talks to raise funding at $100B valuation, more than 3x la
 One fallen power line exposed a growing AI data center problem. Here’s how to fix it.
 Librarians are hosting viral ‘Avoiding AI’ workshops for people who are fed up with Big Tech
 Monday.com is the latest tech company to blame AI for layoffs — here are 20 others
+Hugging Face CEO calls for ‘radical transparency’ after ‘unprecedented’ OpenAI hack
