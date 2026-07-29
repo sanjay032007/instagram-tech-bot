@@ -1,4 +1,3 @@
-OpenAI proposed donating 5% of its equity to a US sovereign wealth fund
 Anthropic is discussing a new custom chip with Samsung
 Mark Zuckerberg tells staff that AI agents haven’t progressed as quickly as he’d hoped
 Politician who investigated spyware abuses had his phone hacked with Pegasus spyware
@@ -48,3 +47,4 @@ Google’s AI search is rapidly becoming the default, new data shows
 Apple sued after alleged App Store crypto scam cost users $1.8M
 Data centers may face temporary power cuts to prevent blackouts on largest US grid
 Sam Altman is ready to decelerate
+Cyera agrees to acquire Oasis Security for $1B to safeguard proliferating AI agents
