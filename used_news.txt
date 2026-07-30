@@ -1,4 +1,3 @@
-Mark Zuckerberg tells staff that AI agents haven’t progressed as quickly as he’d hoped
 Politician who investigated spyware abuses had his phone hacked with Pegasus spyware
 Private space pilots are flying orbital missions for the US Space Force
 A warning sign about AI’s real cost, courtesy of Google and Amazon
@@ -48,3 +47,4 @@ Data centers may face temporary power cuts to prevent blackouts on largest US gr
 Sam Altman is ready to decelerate
 Cyera agrees to acquire Oasis Security for $1B to safeguard proliferating AI agents
 Mark Zuckerberg predicts that billions of people will have personal AI agents in five years
+Zoox clears final federal hurdle to launch paid robotaxi service
