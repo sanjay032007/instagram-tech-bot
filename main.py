@@ -170,18 +170,29 @@ def validate_image_with_gemini(image_path, slide_context):
     print(f"Validating image relevance to: '{slide_context}'")
     def exec_func(client, model):
         myfile = client.files.upload(file=image_path)
-        prompt = f"""You are a professional editorial image reviewer.
-Analyze this image. Does it look like a high-quality, professional photograph or highly relevant illustration for a presentation slide discussing: '{slide_context}'?
-We strongly prefer images with dark backgrounds or negative space at the top.
-Score relevance and quality from 0 to 100.
-Output ONLY raw JSON format: {{"score": 85, "reason": "Clear photo, dark background."}}"""
+        prompt = f"""You are a strict editorial image reviewer for a tech news Instagram page.
+
+TOPIC: '{slide_context}'
+
+Analyze this image and determine:
+1. Is it DIRECTLY related to the topic above? (e.g., if topic is about Apple, does the image show Apple products, logo, or related imagery?)
+2. Is it high quality and professional?
+3. Would it work as a dark-toned background for a text overlay?
+
+Scoring guide:
+- 80-100: Directly shows the topic subject (correct product, company, person, or technology)
+- 50-79: Related to the tech field but not specifically about the topic
+- 20-49: Generic stock photo loosely related
+- 0-19: Completely unrelated
+
+Output ONLY raw JSON: {{"score": 85, "reason": "Shows the exact product discussed."}}"""
         response = client.models.generate_content(
             model=model,
             contents=[myfile, prompt],
             config=types.GenerateContentConfig(response_mime_type="application/json")
         )
         validation = json.loads(response.text)
-        print(f"Validation Details: {validation.get('score')} | {validation.get('reason')}")
+        print(f"  Score: {validation.get('score')} | {validation.get('reason')}")
         return validation.get('score', 0)
 
     models = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-pro-exp-02-05', 'gemini-2.0-flash', 'gemini-1.5-pro']
@@ -198,40 +209,72 @@ def get_valid_unsplash_image(search_queries, slide_context):
         return None
     history = load_history()
     evaluations = 0
+    best_path = None
+    best_score = 0
+    best_id = None
+    MAX_EVALS = 6  # evaluate up to 6 candidates across all queries
+    ACCEPT_SCORE = 55  # accept directly if score >= this
     
     for query in search_queries:
+        if evaluations >= MAX_EVALS:
+            break
         print(f"\n--- SEARCH STAGE: '{query}' ---")
-        url = f"https://api.unsplash.com/search/photos?query={urllib.parse.quote(query)}&per_page=5&orientation=landscape&client_id={UNSPLASH_ACCESS_KEY}"
+        # No orientation filter — allow squarish and portrait photos too
+        url = f"https://api.unsplash.com/search/photos?query={urllib.parse.quote(query)}&per_page=8&client_id={UNSPLASH_ACCESS_KEY}"
         try:
             req = urllib.request.Request(url)
             with urllib.request.urlopen(req) as response:
                 results = json.loads(response.read().decode()).get('results', [])
                 for res in results:
-                    if evaluations >= 3:
-                        print("Max evaluations (3) reached for this slide to conserve API quota. Falling back to AI Generation.")
-                        return None
+                    if evaluations >= MAX_EVALS:
+                        break
                         
                     img_id = res['id']
                     if img_id in history:
                         continue
                         
                     img_url = res['urls']['regular']
-                    print(f"Evaluating candidate image: {img_url}")
+                    print(f"  Candidate {evaluations+1}/{MAX_EVALS}: {img_url}")
                     temp_path = f"temp_{img_id}.jpg"
                     urllib.request.urlretrieve(img_url, temp_path)
                     
-                    time.sleep(5) # Prevent 15 RPM free tier limit!
+                    time.sleep(5)  # Prevent 15 RPM free tier limit
                     score = validate_image_with_gemini(temp_path, slide_context)
                     evaluations += 1
                     
-                    if score >= 75:
-                        print(f"ACCEPTED Image {img_id}")
+                    if score >= ACCEPT_SCORE:
+                        # Good enough — accept immediately
+                        print(f"  ✓ ACCEPTED (score {score}) — {img_id}")
+                        # Clean up any previous best candidate
+                        if best_path and best_path != temp_path and os.path.exists(best_path):
+                            os.remove(best_path)
                         history.append(img_id)
                         save_history(history)
                         return temp_path
-                    os.remove(temp_path)
+                    
+                    # Track best scoring image as fallback
+                    if score > best_score:
+                        if best_path and os.path.exists(best_path):
+                            os.remove(best_path)
+                        best_path = temp_path
+                        best_score = score
+                        best_id = img_id
+                    else:
+                        os.remove(temp_path)
         except Exception as e:
-            print(f"Search error for query '{query}': {e}")
+            print(f"  Search error for query '{query}': {e}")
+    
+    # If no image scored above ACCEPT_SCORE, use the best one we found (if any)
+    if best_path and best_score >= 30:
+        print(f"  Using best available image (score {best_score}) — {best_id}")
+        history.append(best_id)
+        save_history(history)
+        return best_path
+    
+    # Clean up if we're rejecting everything
+    if best_path and os.path.exists(best_path):
+        os.remove(best_path)
+    print(f"  No suitable image found after {evaluations} evaluations. Falling back to AI generation.")
     return None
 
 @retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
@@ -803,12 +846,16 @@ if __name__ == "__main__":
         content = generate_post_content(news_text)
         print(f"Generated Content: {json.dumps(content, indent=2)}")
         
+        news_topic = content.get('news_topic', '')
         slide_image_paths = []
         for i, slide in enumerate(content['slides']):
-            print(f"\\n--- Processing Background for Slide {i+1} ---")
-            img_path = get_valid_unsplash_image(slide['search_queries'], slide['headline'])
+            print(f"\n--- Processing Background for Slide {i+1} ---")
+            # Build rich context: news topic + slide headline for better image matching
+            slide_headline = slide.get('headline', '').replace('**', '')
+            search_context = f"{news_topic} — {slide_headline}"
+            img_path = get_valid_unsplash_image(slide['search_queries'], search_context)
             if not img_path:
-                img_path = generate_fallback_image(slide['headline'])
+                img_path = generate_fallback_image(search_context)
             if not img_path:
                 print("Using empty black fallback image.")
                 img_path = "fallback_black.jpg"
