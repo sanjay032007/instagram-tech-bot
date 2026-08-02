@@ -1,4 +1,3 @@
-What is Mistral AI? Everything to know about the OpenAI competitor
 Midjourney wants Hollywood studios to reveal the details of their AI usage
 Trump memecoin investors lost $3.8 billion, analysis finds
 The ‘first’ AI-run ransomware attack still needed a human
@@ -48,3 +47,4 @@ Zoox clears final federal hurdle to launch paid robotaxi service
 Anthropic says its own AI models breached three companies during security tests
 Google nixes its Earth AI feature one day after launch, amid criticism it would spread misinformation
 OpenAI reportedly finds evidence that more of its agents ran amok
+Judge denies xAI’s request to block Minnesota ban on ‘nudify’ apps
