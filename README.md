@@ -39,6 +39,63 @@ An end-to-end autonomous pipeline that fetches trending technology & AI news, ge
 
 ---
 
+## 🔄 Failover & Quota Management
+
+The bot is built to **never fail** due to API rate limits. It automatically switches between models and API keys when a quota limit is reached.
+
+### How It Works
+
+When a Gemini API call fails with a `429 (Too Many Requests)`, `RESOURCE_EXHAUSTED`, or any quota-related error, the bot **immediately switches** to the next model in the chain — no manual intervention needed.
+
+```mermaid
+flowchart LR
+    A["gemini-2.5-pro"] -->|"429 Quota Hit"| B["gemini-2.5-flash"]
+    B -->|"429 Quota Hit"| C["gemini-2.5-flash-lite"]
+    C -->|"429 Quota Hit"| D["gemini-2.0-pro-exp"]
+    D -->|"429 Quota Hit"| E["gemini-2.0-flash"]
+    E -->|"429 Quota Hit"| F["gemini-1.5-pro"]
+    F -->|"429 Quota Hit"| G["Switch to API KEY 2"]
+    G -->|"Retry all models"| A
+```
+
+### Model Priority Order
+
+The bot tries models in this exact order (highest capability first):
+
+| Priority | Model | Notes |
+|----------|-------|-------|
+| 1 | `gemini-2.5-pro` | Highest quality, lowest quota |
+| 2 | `gemini-2.5-flash` | Fast, good quality |
+| 3 | `gemini-2.5-flash-lite` | Lightweight, high quota |
+| 4 | `gemini-2.0-pro-exp-02-05` | Experimental, separate quota |
+| 5 | `gemini-2.0-flash` | Reliable fallback |
+| 6 | `gemini-1.5-pro` | Legacy stable model |
+
+### Dual API Key System
+
+If **all 6 models** are exhausted on `GEMINI_API_KEY`, the bot automatically switches to `GEMINI_API_KEY_2` and retries all models again. This effectively **doubles your total available quota**.
+
+### Failover Behavior Summary
+
+| Scenario | What Happens |
+|----------|-------------|
+| Model hits 429 / quota limit | Immediately switches to next model in the chain |
+| All models exhausted on Key 1 | Automatically switches to `GEMINI_API_KEY_2` |
+| All models exhausted on Key 2 | Waits 25 seconds and retries (up to 4 attempts via `tenacity`) |
+| All retries exhausted | Prints `CRITICAL: Daily Quota completely exhausted` and exits cleanly |
+| Non-quota error (e.g., network) | Retries with exponential backoff |
+
+### Console Output Example
+
+When failover happens, you'll see clear logs:
+```
+[GEMINI] Rate limited/Quota on gemini-2.5-pro. Failing over to next model...
+[GEMINI] Rate limited/Quota on gemini-2.5-flash. Failing over to next model...
+[GEMINI] Task: News Generation & Keyword Extraction | Model Used: gemini-2.5-flash-lite
+```
+
+
+
 ## ⚙️ How It Works (Architecture Pipeline)
 
 ```mermaid
