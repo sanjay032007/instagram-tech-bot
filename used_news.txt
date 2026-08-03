@@ -1,4 +1,3 @@
-The ‘first’ AI-run ransomware attack still needed a human
 Savi’s app aims to protect consumers from realistic AI scams like kidnappers demanding ransom
 Apple to produce Made in America wireless chips with Broadcom
 SpaceXAI releases Grok 4.5, which Elon describes as an ‘Opus-class model’
@@ -48,3 +47,4 @@ OpenAI reportedly finds evidence that more of its agents ran amok
 Judge denies xAI’s request to block Minnesota ban on ‘nudify’ apps
 YouTuber Hank Green says his AI usage is ‘not healthy’
 Sam Altman and AI’s decel debate
+Horizon3 hits $2 billion valuation with $250M Series E as AI threats escalate
