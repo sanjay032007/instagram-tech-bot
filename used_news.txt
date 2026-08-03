@@ -1,4 +1,3 @@
-Trump memecoin investors lost $3.8 billion, analysis finds
 The ‘first’ AI-run ransomware attack still needed a human
 Savi’s app aims to protect consumers from realistic AI scams like kidnappers demanding ransom
 Apple to produce Made in America wireless chips with Broadcom
@@ -48,3 +47,4 @@ Google nixes its Earth AI feature one day after launch, amid criticism it would 
 OpenAI reportedly finds evidence that more of its agents ran amok
 Judge denies xAI’s request to block Minnesota ban on ‘nudify’ apps
 YouTuber Hank Green says his AI usage is ‘not healthy’
+Sam Altman and AI’s decel debate
