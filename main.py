@@ -129,13 +129,21 @@ CRITICAL FORMATTING RULES:
 - Use ** tags around words in the headline that should be highlighted in GOLD color.
   Example: THE FUTURE OF\n**ARTIFICIAL**\n**INTELLIGENCE**
 - Keep all text concise. No long paragraphs.
-- For EACH slide, generate 3 highly specific Unsplash search queries deeply related to that slide's topic.
-  Prioritize dark, cinematic, moody technical photography. Avoid generic terms like "technology" or "business".
+
+IMAGE SEARCH QUERY RULES (VERY IMPORTANT):
+For EACH slide, generate 3 Unsplash search queries that will find images DIRECTLY related to the specific subject.
+- ALWAYS include the actual company name, product name, or person's name in at least 2 of the 3 queries.
+  Example for Apple news: ["Apple iPhone 16 product", "Apple headquarters Cupertino", "Tim Cook CEO Apple"]
+  Example for Tesla news: ["Tesla Model S electric car", "Elon Musk Tesla factory", "Tesla Gigafactory aerial"]
+  Example for AI news: ["OpenAI ChatGPT interface", "artificial intelligence neural network", "GPT AI robot"]
+- NEVER use generic queries like "technology", "innovation", "business", "dark background", "abstract".
+- Each query should be 3-5 words with the actual entity/product name.
 
 Output ONLY raw JSON using this exact schema:
 {
   "original_title": "exact title of the article you selected",
-  "news_topic": "string",
+  "news_topic": "string (e.g., 'Apple Vision Pro Launch')",
+  "topic_search_query": "string (the single best 3-5 word Unsplash query for this entire post's topic, e.g., 'Apple Vision Pro headset')",
   "slides": [
     {
       "slide_type": "cover|context|bullets|stat|quote|comparison|cta",
@@ -166,128 +174,63 @@ Note: bullet_points is only required for slide_type 'bullets' and 'comparison'. 
         print(f"Failed to generate content after complete failover and retries: {e}")
         raise e
 
-def validate_image_with_gemini(image_path, slide_context):
-    print(f"Validating image relevance to: '{slide_context}'")
-    def exec_func(client, model):
-        myfile = client.files.upload(file=image_path)
-        prompt = f"""You are a strict editorial image reviewer for a tech news Instagram page.
-
-TOPIC: '{slide_context}'
-
-Analyze this image and determine:
-1. Is it DIRECTLY related to the topic above? (e.g., if topic is about Apple, does the image show Apple products, logo, or related imagery?)
-2. Is it high quality and professional?
-3. Would it work as a dark-toned background for a text overlay?
-
-Scoring guide:
-- 80-100: Directly shows the topic subject (correct product, company, person, or technology)
-- 50-79: Related to the tech field but not specifically about the topic
-- 20-49: Generic stock photo loosely related
-- 0-19: Completely unrelated
-
-Output ONLY raw JSON: {{"score": 85, "reason": "Shows the exact product discussed."}}"""
-        response = client.models.generate_content(
-            model=model,
-            contents=[myfile, prompt],
-            config=types.GenerateContentConfig(response_mime_type="application/json")
-        )
-        validation = json.loads(response.text)
-        print(f"  Score: {validation.get('score')} | {validation.get('reason')}")
-        return validation.get('score', 0)
-
-    models = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-pro-exp-02-05', 'gemini-2.0-flash', 'gemini-1.5-pro']
-    try:
-        return run_with_failover("Image Relevance Validation", models, exec_func)
-    except:
-        return 0
-
-
-
-def get_valid_unsplash_image(search_queries, slide_context):
+def get_valid_unsplash_image(search_queries, session_used_ids):
+    """Search Unsplash for the first relevant, non-duplicate image.
+    Uses Unsplash's relevance ranking (top result = best match).
+    session_used_ids: set of image IDs already used in THIS run to prevent same-post duplicates.
+    """
     if not UNSPLASH_ACCESS_KEY:
-        print("No Unsplash key found. Skipping search.")
-        return None
-    history = load_history()
-    evaluations = 0
-    best_path = None
-    best_score = 0
-    best_id = None
-    MAX_EVALS = 6  # evaluate up to 6 candidates across all queries
-    ACCEPT_SCORE = 55  # accept directly if score >= this
+        print("  No Unsplash key found. Skipping search.")
+        return None, None
+    history = set(load_history())  # all-time history (cross-post)
     
     for query in search_queries:
-        if evaluations >= MAX_EVALS:
-            break
-        print(f"\n--- SEARCH STAGE: '{query}' ---")
-        # No orientation filter — allow squarish and portrait photos too
-        url = f"https://api.unsplash.com/search/photos?query={urllib.parse.quote(query)}&per_page=8&client_id={UNSPLASH_ACCESS_KEY}"
+        print(f"  Searching Unsplash: '{query}'")
+        # order_by=relevant is default and best for topic matching
+        url = f"https://api.unsplash.com/search/photos?query={urllib.parse.quote(query)}&per_page=10&order_by=relevant&client_id={UNSPLASH_ACCESS_KEY}"
         try:
             req = urllib.request.Request(url)
             with urllib.request.urlopen(req) as response:
                 results = json.loads(response.read().decode()).get('results', [])
+                if not results:
+                    print(f"    No results for '{query}'")
+                    continue
                 for res in results:
-                    if evaluations >= MAX_EVALS:
-                        break
-                        
                     img_id = res['id']
-                    if img_id in history:
+                    # Skip if used in a previous post OR already used in this post
+                    if img_id in history or img_id in session_used_ids:
                         continue
-                        
+                    
                     img_url = res['urls']['regular']
-                    print(f"  Candidate {evaluations+1}/{MAX_EVALS}: {img_url}")
                     temp_path = f"temp_{img_id}.jpg"
                     urllib.request.urlretrieve(img_url, temp_path)
-                    
-                    time.sleep(5)  # Prevent 15 RPM free tier limit
-                    score = validate_image_with_gemini(temp_path, slide_context)
-                    evaluations += 1
-                    
-                    if score >= ACCEPT_SCORE:
-                        # Good enough — accept immediately
-                        print(f"  ✓ ACCEPTED (score {score}) — {img_id}")
-                        # Clean up any previous best candidate
-                        if best_path and best_path != temp_path and os.path.exists(best_path):
-                            os.remove(best_path)
-                        history.append(img_id)
-                        save_history(history)
-                        return temp_path
-                    
-                    # Track best scoring image as fallback
-                    if score > best_score:
-                        if best_path and os.path.exists(best_path):
-                            os.remove(best_path)
-                        best_path = temp_path
-                        best_score = score
-                        best_id = img_id
-                    else:
-                        os.remove(temp_path)
+                    print(f"    ✓ Selected: {img_url}")
+                    return temp_path, img_id
         except Exception as e:
-            print(f"  Search error for query '{query}': {e}")
+            print(f"    Search error for '{query}': {e}")
     
-    # If no image scored above ACCEPT_SCORE, use the best one we found (if any)
-    if best_path and best_score >= 30:
-        print(f"  Using best available image (score {best_score}) — {best_id}")
-        history.append(best_id)
-        save_history(history)
-        return best_path
-    
-    # Clean up if we're rejecting everything
-    if best_path and os.path.exists(best_path):
-        os.remove(best_path)
-    print(f"  No suitable image found after {evaluations} evaluations. Falling back to AI generation.")
-    return None
+    print(f"  No suitable image found across {len(search_queries)} queries.")
+    return None, None
 
 @retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
-def generate_fallback_image(slide_context):
-    print(f"\n--- FALLBACK STAGE: Generating AI Image for '{slide_context}' ---")
+def generate_fallback_image(news_topic, slide_headline):
+    """Generate a topic-specific background image using Imagen."""
+    print(f"  Generating AI image for: '{news_topic} — {slide_headline}'")
     if not API_KEYS: return None
+    
+    # Build a very specific prompt with the actual topic
+    prompt = f"""Professional editorial photo related to: {news_topic}.
+Context: {slide_headline}.
+Style: Dark moody background, cinematic lighting, high contrast.
+The image should clearly represent the subject matter.
+No text, no logos, no watermarks."""
     
     for api_key in API_KEYS:
         client = genai.Client(api_key=api_key)
         try:
             result = client.models.generate_images(
                 model='imagen-3.0-generate-001',
-                prompt=f"A photorealistic, dark, cinematic, editorial illustration about: {slide_context}. Professional presentation background, lots of negative space at the top.",
+                prompt=prompt,
                 config=types.GenerateImagesConfig(
                     number_of_images=1,
                     output_mime_type="image/jpeg",
@@ -298,12 +241,9 @@ def generate_fallback_image(slide_context):
                 image = Image.open(io.BytesIO(generated_image.image.image_bytes))
                 path = f'fallback_{int(time.time())}.jpg'
                 image.save(path)
-                history = load_history()
-                history.append(path.split('.')[0])
-                save_history(history)
                 return path
         except Exception as e:
-            print(f"Fallback Imagen error with key: {e}")
+            print(f"  Imagen error: {e}")
             continue
     return None
 
@@ -847,17 +787,31 @@ if __name__ == "__main__":
         print(f"Generated Content: {json.dumps(content, indent=2)}")
         
         news_topic = content.get('news_topic', '')
+        topic_query = content.get('topic_search_query', news_topic)
         slide_image_paths = []
+        session_used_ids = set()  # prevent same image on two slides in this post
+        
         for i, slide in enumerate(content['slides']):
             print(f"\n--- Processing Background for Slide {i+1} ---")
-            # Build rich context: news topic + slide headline for better image matching
             slide_headline = slide.get('headline', '').replace('**', '')
-            search_context = f"{news_topic} — {slide_headline}"
-            img_path = get_valid_unsplash_image(slide['search_queries'], search_context)
+            
+            # Build search queries: slide-specific queries + topic-level query as fallback
+            queries = slide.get('search_queries', [])
+            if topic_query and topic_query not in queries:
+                queries.append(topic_query)  # always try the main topic as last resort
+            
+            img_path, img_id = get_valid_unsplash_image(queries, session_used_ids)
+            if img_path and img_id:
+                session_used_ids.add(img_id)
+                # Save to persistent history
+                history = load_history()
+                history.append(img_id)
+                save_history(history)
+            
             if not img_path:
-                img_path = generate_fallback_image(search_context)
+                img_path = generate_fallback_image(news_topic, slide_headline)
             if not img_path:
-                print("Using empty black fallback image.")
+                print("  Using empty black fallback image.")
                 img_path = "fallback_black.jpg"
                 Image.new("RGB", (1080, 1080), (20, 20, 20)).save(img_path)
             slide_image_paths.append(img_path)
