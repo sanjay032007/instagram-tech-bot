@@ -133,11 +133,16 @@ CRITICAL FORMATTING RULES:
 IMAGE SEARCH QUERY RULES (VERY IMPORTANT):
 For EACH slide, generate 3 Unsplash search queries that will find images DIRECTLY related to the specific subject.
 - ALWAYS include the actual company name, product name, or person's name in at least 2 of the 3 queries.
-  Example for Apple news: ["Apple iPhone 16 product", "Apple headquarters Cupertino", "Tim Cook CEO Apple"]
-  Example for Tesla news: ["Tesla Model S electric car", "Elon Musk Tesla factory", "Tesla Gigafactory aerial"]
-  Example for AI news: ["OpenAI ChatGPT interface", "artificial intelligence neural network", "GPT AI robot"]
 - NEVER use generic queries like "technology", "innovation", "business", "dark background", "abstract".
 - Each query should be 3-5 words with the actual entity/product name.
+- CRITICAL: Every slide MUST have COMPLETELY DIFFERENT queries from all other slides. NO duplicate or near-duplicate queries.
+  Show different visual angles of the topic: the product, the CEO, the office, the event, the competitor, the data, the users, etc.
+  Example for 5-slide Apple post:
+    Slide 1: ["Apple WWDC keynote stage", "Apple Park aerial view", "iPhone 16 Pro closeup"]
+    Slide 2: ["Tim Cook presenting", "Apple silicon M4 chip", "MacBook Pro laptop"]
+    Slide 3: ["iOS software interface", "Apple developer conference", "Swift programming code"]
+    Slide 4: ["Apple stock market graph", "smartphone market share", "tech industry competition"]
+    Slide 5: ["Apple Store retail", "Apple logo neon", "future technology concept"]
 
 Output ONLY raw JSON using this exact schema:
 {
@@ -174,10 +179,11 @@ Note: bullet_points is only required for slide_type 'bullets' and 'comparison'. 
         print(f"Failed to generate content after complete failover and retries: {e}")
         raise e
 
-def get_valid_unsplash_image(search_queries, session_used_ids):
+def get_valid_unsplash_image(search_queries, session_used_ids, session_used_queries):
     """Search Unsplash for the first relevant, non-duplicate image.
     Uses Unsplash's relevance ranking (top result = best match).
-    session_used_ids: set of image IDs already used in THIS run to prevent same-post duplicates.
+    session_used_ids: set of image IDs already used in THIS run.
+    session_used_queries: set of query strings already searched in THIS run (skip duplicates).
     """
     if not UNSPLASH_ACCESS_KEY:
         print("  No Unsplash key found. Skipping search.")
@@ -185,8 +191,14 @@ def get_valid_unsplash_image(search_queries, session_used_ids):
     history = set(load_history())  # all-time history (cross-post)
     
     for query in search_queries:
+        # Skip queries we've already tried in this run
+        q_lower = query.strip().lower()
+        if q_lower in session_used_queries:
+            print(f"  Skipping already-used query: '{query}'")
+            continue
+        session_used_queries.add(q_lower)
+        
         print(f"  Searching Unsplash: '{query}'")
-        # order_by=relevant is default and best for topic matching
         url = f"https://api.unsplash.com/search/photos?query={urllib.parse.quote(query)}&per_page=10&order_by=relevant&client_id={UNSPLASH_ACCESS_KEY}"
         try:
             req = urllib.request.Request(url)
@@ -789,18 +801,19 @@ if __name__ == "__main__":
         news_topic = content.get('news_topic', '')
         topic_query = content.get('topic_search_query', news_topic)
         slide_image_paths = []
-        session_used_ids = set()  # prevent same image on two slides in this post
+        session_used_ids = set()      # prevent same image on two slides
+        session_used_queries = set()  # prevent searching same query twice
         
         for i, slide in enumerate(content['slides']):
             print(f"\n--- Processing Background for Slide {i+1} ---")
             slide_headline = slide.get('headline', '').replace('**', '')
             
-            # Build search queries: slide-specific queries + topic-level query as fallback
-            queries = slide.get('search_queries', [])
-            if topic_query and topic_query not in queries:
-                queries.append(topic_query)  # always try the main topic as last resort
+            # Build search queries: slide-specific first, then topic fallback
+            queries = list(slide.get('search_queries', []))
+            if topic_query and topic_query.strip().lower() not in [q.strip().lower() for q in queries]:
+                queries.append(topic_query)
             
-            img_path, img_id = get_valid_unsplash_image(queries, session_used_ids)
+            img_path, img_id = get_valid_unsplash_image(queries, session_used_ids, session_used_queries)
             if img_path and img_id:
                 session_used_ids.add(img_id)
                 # Save to persistent history
