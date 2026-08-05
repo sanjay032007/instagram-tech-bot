@@ -1,4 +1,3 @@
-SpaceXAI releases Grok 4.5, which Elon describes as an ‘Opus-class model’
 Anthropic, OpenAI, and SpaceX are bigger than the last 25 years of tech exits
 OpenAI launches its new family of models with GPT-5.6
 EU threatens Meta with fines over addictive features on Facebook and Instagram
@@ -48,3 +47,4 @@ Sam Altman and AI’s decel debate
 Horizon3 hits $2 billion valuation with $250M Series E as AI threats escalate
 Who’s legally to blame for Anthropic and OpenAI’s autonomous AI hacks? It’s complicated
 Apple says more ex-employees may have taken confidential data to OpenAI
+Anthropic signs $10B deal with AI cloud startup Volta
