@@ -1,4 +1,3 @@
-Apple sues OpenAI over alleged trade secret theft
 Meta removes controversial AI feature on Instagram after backlash
 SK Hynix raises $26.5B in the biggest foreign IPO in US history, is urged to build new US fabs
 OpenAI bets on families as ChatGPT goes deeper into households
@@ -48,3 +47,4 @@ Anthropic signs $10B deal with AI cloud startup Volta
 Anthropic is hiring an AI chip design team
 Jeff Dean and other top AI researchers are leaving Google to launch their own startup
 ChatGPT brings unlimited text chats to free users
+Chinese AI model Kimi escaped its cybersecurity testing environment, researchers say
