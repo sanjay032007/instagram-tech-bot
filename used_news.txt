@@ -1,4 +1,3 @@
-EU threatens Meta with fines over addictive features on Facebook and Instagram
 Apple sues OpenAI over alleged trade secret theft
 Meta removes controversial AI feature on Instagram after backlash
 SK Hynix raises $26.5B in the biggest foreign IPO in US history, is urged to build new US fabs
@@ -48,3 +47,4 @@ Apple says more ex-employees may have taken confidential data to OpenAI
 Anthropic signs $10B deal with AI cloud startup Volta
 Anthropic is hiring an AI chip design team
 Jeff Dean and other top AI researchers are leaving Google to launch their own startup
+ChatGPT brings unlimited text chats to free users
