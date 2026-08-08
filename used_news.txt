@@ -1,4 +1,3 @@
-SK Hynix raises $26.5B in the biggest foreign IPO in US history, is urged to build new US fabs
 OpenAI bets on families as ChatGPT goes deeper into households
 SpaceX cleared to fly Starship again after booster failure in May
 Apple says former employee exploited ‘rare’ bug to download confidential files after leaving for OpenAI
@@ -48,3 +47,4 @@ Jeff Dean and other top AI researchers are leaving Google to launch their own st
 ChatGPT brings unlimited text chats to free users
 Chinese AI model Kimi escaped its cybersecurity testing environment, researchers say
 OpenAI says it slowed Astra model development over security concerns
+Cloudflare launches Kitesurf, a browser built for AI agents
