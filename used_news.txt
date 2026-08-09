@@ -1,4 +1,3 @@
-OpenAI bets on families as ChatGPT goes deeper into households
 SpaceX cleared to fly Starship again after booster failure in May
 Apple says former employee exploited ‘rare’ bug to download confidential files after leaving for OpenAI
 Spotify expands its AI push with a ChatGPT-like music assistant
@@ -48,3 +47,4 @@ ChatGPT brings unlimited text chats to free users
 Chinese AI model Kimi escaped its cybersecurity testing environment, researchers say
 OpenAI says it slowed Astra model development over security concerns
 Cloudflare launches Kitesurf, a browser built for AI agents
+This ‘adversarial’ pattern can prevent surveillance cameras from detecting you
