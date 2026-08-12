@@ -1,4 +1,3 @@
-Anthropic, Blackstone bet the next trillion-dollar AI business is implementation, not just models
 Apple Intelligence approved for launch in China with Alibaba and Baidu
 Google Vids now lets you star in your own AI videos
 Zoox issues software recall after a robotaxi got confused by heavy smoke
@@ -48,3 +47,4 @@ The AI safety test is becoming a safety risk
 Planned Amazon data center could become the biggest climate polluter in the U.S.
 Tech industry is buzzing after a Claude agent hacked into a gym
 As AI-led attacks multiply, OpenAI launches a new cyber model
+Google’s Gemini app surges to 1 billion users
