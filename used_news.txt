@@ -1,4 +1,3 @@
-How Apple’s big lawsuit could disrupt OpenAI’s IPO plans
 Apple and Google ordered to purge ‘nudify’ apps from App Stores
 Kimi: Threat or menace?
 Databricks hits $188B valuation, extending its run as AI’s favorite second act
@@ -48,3 +47,4 @@ Google’s Gemini app surges to 1 billion users
 Everything announced at Made by Google ’26: Pixel 11, Pixel Watch 5, Pixel Tag, and tons of Gemini features
 Amazon will train on Twitch streamers’ content by default, unless they opt out
 OpenAI introduces ‘Ultrafast,’ a new mode that makes GPT-5.6 Sol work at 14x the speed
+Anthropic set AI agents loose on the same task. They started a turf war.
