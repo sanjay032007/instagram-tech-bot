@@ -1,4 +1,3 @@
-Netflix paid $587M for Ben Affleck’s AI filmmaking startup
 Hackers stole ‘significant’ amount of data from tech firm relied on by thousands of US hospitals and pharmacies
 OpenAI is scared of open-weight models. Should the US be?
 Anthropic’s landmark $1.5B copyright settlement is approved
@@ -48,3 +47,4 @@ Anthropic set AI agents loose on the same task. They started a turf war.
 Does Mark Zuckerberg really believe AI is ‘for everyone’?
 Apple proposes to take a 15% cut of purchases made outside the App Store
 Woman claims her stepfather used Grok to transform childhood photo into explicit imagery
+Talks to sell PayPal to Stripe and Advent are heating up
