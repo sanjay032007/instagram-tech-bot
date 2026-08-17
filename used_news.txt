@@ -1,4 +1,3 @@
-OpenAI is scared of open-weight models. Should the US be?
 Anthropic’s landmark $1.5B copyright settlement is approved
 OpenAI says Hugging Face was breached by its pre-release models
 These are the countries moving to ban social media for children
@@ -48,3 +47,4 @@ Apple proposes to take a 15% cut of purchases made outside the App Store
 Woman claims her stepfather used Grok to transform childhood photo into explicit imagery
 Talks to sell PayPal to Stripe and Advent are heating up
 Stripe will reportedly acquire AI gateway startup OpenRouter for $7B+
+Uber adds Zipline drones to its Eats delivery network
