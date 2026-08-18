@@ -1,4 +1,3 @@
-Anthropic’s landmark $1.5B copyright settlement is approved
 OpenAI says Hugging Face was breached by its pre-release models
 These are the countries moving to ban social media for children
 How OpenAI’s human mistake led to the AI-powered hack on Hugging Face
@@ -48,3 +47,4 @@ Woman claims her stepfather used Grok to transform childhood photo into explicit
 Talks to sell PayPal to Stripe and Advent are heating up
 Stripe will reportedly acquire AI gateway startup OpenRouter for $7B+
 Uber adds Zipline drones to its Eats delivery network
+OpenAI launches a safer ChatGPT for teens — years after teens started using it
