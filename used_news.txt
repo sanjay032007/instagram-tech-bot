@@ -1,4 +1,3 @@
-How AI guardrails are impeding the work of offensive cybersecurity researchers
 OpenAI’s new voice mode makes it to the ChatGPT desktop app
 Anduril reportedly in talks to raise funding at $100B valuation, more than 3x last year’s mark
 One fallen power line exposed a growing AI data center problem. Here’s how to fix it.
@@ -48,3 +47,4 @@ OpenAI launches a safer ChatGPT for teens — years after teens started using it
 CareCloud confirms 3.7M patients had their medical records stolen in data breach
 AI was supposed to win people over by now — it hasn’t
 US says hackers are targeting vulnerable water systems with the help of AI
+ChatGPT can now send texts for you with new Apple Messages plug-in
