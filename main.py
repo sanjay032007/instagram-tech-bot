@@ -172,7 +172,7 @@ Note: bullet_points is only required for slide_type 'bullets' and 'comparison'. 
         )
         return json.loads(response.text)
 
-    models = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-pro-exp-02-05', 'gemini-2.0-flash', 'gemini-1.5-pro']
+    models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.5-pro', 'gemini-1.5-pro']
     try:
         return run_with_failover("News Generation & Keyword Extraction", models, exec_func)
     except Exception as e:
@@ -760,13 +760,21 @@ def upload_image(file_path):
 def post_to_instagram(image_urls, caption):
     print("Posting to Instagram...")
     item_ids = []
-    for url in image_urls:
+    for idx, url in enumerate(image_urls):
         req_url = f"https://graph.instagram.com/v20.0/{IG_ACCOUNT_ID}/media"
         data = urllib.parse.urlencode({'image_url': url, 'is_carousel_item': 'true', 'access_token': IG_ACCESS_TOKEN}).encode('utf-8')
         try:
             with urllib.request.urlopen(urllib.request.Request(req_url, data=data)) as res:
-                item_ids.append(json.loads(res.read().decode())['id'])
-        except: return False
+                item_id = json.loads(res.read().decode())['id']
+                item_ids.append(item_id)
+                print(f"  ✓ Carousel item {idx+1}/{len(image_urls)} created: {item_id}")
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode('utf-8', errors='replace')
+            print(f"ERROR creating carousel item {idx+1}: HTTP {e.code} - {err_body}")
+            return False
+        except Exception as e:
+            print(f"ERROR creating carousel item {idx+1}: {e}")
+            return False
         time.sleep(2)
         
     req_url = f"https://graph.instagram.com/v20.0/{IG_ACCOUNT_ID}/media"
@@ -774,23 +782,45 @@ def post_to_instagram(image_urls, caption):
     try:
         with urllib.request.urlopen(urllib.request.Request(req_url, data=data)) as res:
             carousel_id = json.loads(res.read().decode())['id']
-    except: return False
+            print(f"  ✓ Carousel container created: {carousel_id}")
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode('utf-8', errors='replace')
+        print(f"ERROR creating carousel container: HTTP {e.code} - {err_body}")
+        return False
+    except Exception as e:
+        print(f"ERROR creating carousel container: {e}")
+        return False
         
     status_url = f"https://graph.instagram.com/v20.0/{carousel_id}?fields=status_code&access_token={IG_ACCESS_TOKEN}"
-    while True:
+    max_status_checks = 25
+    for _ in range(max_status_checks):
         try:
             with urllib.request.urlopen(urllib.request.Request(status_url)) as res:
-                if json.loads(res.read().decode())['status_code'] == 'FINISHED': break
-        except: pass
+                status = json.loads(res.read().decode()).get('status_code')
+                print(f"  Container status: {status}")
+                if status == 'FINISHED':
+                    break
+                elif status == 'ERROR':
+                    print("ERROR: Instagram container processing failed.")
+                    return False
+        except Exception as e:
+            print(f"Status check warning: {e}")
         time.sleep(3)
         
     pub_url = f"https://graph.instagram.com/v20.0/{IG_ACCOUNT_ID}/media_publish"
     data = urllib.parse.urlencode({'creation_id': carousel_id, 'access_token': IG_ACCESS_TOKEN}).encode('utf-8')
     try:
         with urllib.request.urlopen(urllib.request.Request(pub_url, data=data)) as res:
-            print(f"SUCCESS! Published post ID: {json.loads(res.read().decode())['id']}")
+            res_data = json.loads(res.read().decode())
+            print(f"SUCCESS! Published post ID: {res_data.get('id')}")
             return True
-    except: return False
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode('utf-8', errors='replace')
+        print(f"ERROR publishing carousel: HTTP {e.code} - {err_body}")
+        return False
+    except Exception as e:
+        print(f"ERROR publishing carousel: {e}")
+        return False
 
 if __name__ == "__main__":
     try:
@@ -843,6 +873,10 @@ if __name__ == "__main__":
                 news_history = load_news_history()
                 news_history.append(content.get('original_title', '').strip())
                 save_news_history(news_history)
+                print("Finished posting to Instagram successfully.")
+            else:
+                print("ERROR: Instagram posting failed!")
+                sys.exit(1)
         else:
             print("Failed to upload all images.")
             sys.exit(1)
