@@ -761,7 +761,7 @@ def post_to_instagram(image_urls, caption):
     print("Posting to Instagram...")
     item_ids = []
     for idx, url in enumerate(image_urls):
-        req_url = f"https://graph.instagram.com/v20.0/{IG_ACCOUNT_ID}/media"
+        req_url = f"https://graph.facebook.com/v20.0/{IG_ACCOUNT_ID}/media"
         data = urllib.parse.urlencode({'image_url': url, 'is_carousel_item': 'true', 'access_token': IG_ACCESS_TOKEN}).encode('utf-8')
         try:
             with urllib.request.urlopen(urllib.request.Request(req_url, data=data)) as res:
@@ -777,7 +777,7 @@ def post_to_instagram(image_urls, caption):
             return False
         time.sleep(2)
         
-    req_url = f"https://graph.instagram.com/v20.0/{IG_ACCOUNT_ID}/media"
+    req_url = f"https://graph.facebook.com/v20.0/{IG_ACCOUNT_ID}/media"
     data = urllib.parse.urlencode({'media_type': 'CAROUSEL', 'children': ','.join(item_ids), 'caption': caption, 'access_token': IG_ACCESS_TOKEN}).encode('utf-8')
     try:
         with urllib.request.urlopen(urllib.request.Request(req_url, data=data)) as res:
@@ -791,7 +791,7 @@ def post_to_instagram(image_urls, caption):
         print(f"ERROR creating carousel container: {e}")
         return False
         
-    status_url = f"https://graph.instagram.com/v20.0/{carousel_id}?fields=status_code&access_token={IG_ACCESS_TOKEN}"
+    status_url = f"https://graph.facebook.com/v20.0/{carousel_id}?fields=status_code&access_token={IG_ACCESS_TOKEN}"
     max_status_checks = 25
     for _ in range(max_status_checks):
         try:
@@ -807,7 +807,7 @@ def post_to_instagram(image_urls, caption):
             print(f"Status check warning: {e}")
         time.sleep(3)
         
-    pub_url = f"https://graph.instagram.com/v20.0/{IG_ACCOUNT_ID}/media_publish"
+    pub_url = f"https://graph.facebook.com/v20.0/{IG_ACCOUNT_ID}/media_publish"
     data = urllib.parse.urlencode({'creation_id': carousel_id, 'access_token': IG_ACCESS_TOKEN}).encode('utf-8')
     try:
         with urllib.request.urlopen(urllib.request.Request(pub_url, data=data)) as res:
