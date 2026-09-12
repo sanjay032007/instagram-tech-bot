@@ -149,9 +149,17 @@ Configure the following secrets in your GitHub Repository under **Settings → S
 | `GEMINI_API_KEY` | **Yes** | Primary Google Gemini API key. |
 | `GEMINI_API_KEY_2` | Optional | Secondary Gemini API key for automatic quota/rate-limit failover. |
 | `UNSPLASH_ACCESS_KEY` | **Yes** | Unsplash API Access Key for downloading background photos. |
-| `IG_ACCESS_TOKEN` | **Yes** | Long-lived Instagram Graph API access token. |
+| `IG_ACCESS_TOKEN` | **Yes** | Long-lived Instagram Graph API access token (valid for 60 days). |
 | `IG_ACCOUNT_ID` | **Yes** | Instagram Business Account ID. |
 | `SLACK_WEBHOOK_URL` | Optional | Slack Webhook URL for posting success notifications. |
+
+> [!IMPORTANT]
+> **Refreshing Expired Instagram Tokens**:
+> Meta Graph API access tokens expire every 60 days. If the workflow fails with an OAuth error:
+> 1. Open the [Meta Graph API Explorer](https://developers.facebook.com/tools/explorer/).
+> 2. Select your App and generate a User Token with `instagram_basic` and `instagram_content_publish` permissions.
+> 3. Open the [Access Token Tool](https://developers.facebook.com/tools/accesstoken/) and click **Extend Access Token** to get a 60-day Long-Lived Token.
+> 4. Update the `IG_ACCESS_TOKEN` secret in GitHub: **Settings → Secrets and variables → Actions → IG_ACCESS_TOKEN**.
 
 ---
 
