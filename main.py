@@ -880,6 +880,17 @@ def post_to_instagram(image_urls, caption):
         except urllib.error.HTTPError as e:
             err_body = e.read().decode('utf-8', errors='replace')
             print(f"ERROR creating carousel item {idx+1}: HTTP {e.code} - {err_body}")
+            if "expired" in err_body.lower() or "190" in err_body or "463" in err_body:
+                print("\n" + "="*70)
+                print("🚨 CRITICAL ACTION REQUIRED: YOUR INSTAGRAM ACCESS TOKEN HAS EXPIRED!")
+                print(f"Details: {err_body}")
+                print("\nTo fix this:")
+                print("1. Go to https://developers.facebook.com/tools/explorer/")
+                print("2. Generate a new Token with 'instagram_basic' & 'instagram_content_publish'")
+                print("3. Exchange it for a 60-day Long-Lived Token")
+                print("4. Update your GitHub Secret 'IG_ACCESS_TOKEN' at:")
+                print("   Repository Settings -> Secrets and variables -> Actions -> IG_ACCESS_TOKEN")
+                print("="*70 + "\n")
             return False
         except Exception as e:
             print(f"ERROR creating carousel item {idx+1}: {e}")
