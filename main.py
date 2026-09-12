@@ -83,6 +83,8 @@ def run_with_failover(task_name, models, execution_func):
                 err_str = str(e).lower()
                 if '429' in err_str or 'resource_exhausted' in err_str or 'quota' in err_str:
                     print(f"[GEMINI] Rate limited/Quota on {model}. Failing over to next model...")
+                elif '404' in err_str or 'not found' in err_str or 'not_found' in err_str or 'deprecated' in err_str:
+                    print(f"[GEMINI] Model {model} is unavailable/deprecated. Skipping...")
                 else:
                     print(f"[GEMINI] Error on {model} ({e}). Failing over to next model...")
                 last_exception = e
@@ -131,18 +133,15 @@ CRITICAL FORMATTING RULES:
 - Keep all text concise. No long paragraphs.
 
 IMAGE SEARCH QUERY RULES (VERY IMPORTANT):
-For EACH slide, generate 3 Unsplash search queries that will find images DIRECTLY related to the specific subject.
-- ALWAYS include the actual company name, product name, or person's name in at least 2 of the 3 queries.
-- NEVER use generic queries like "technology", "innovation", "business", "dark background", "abstract".
-- Each query should be 3-5 words with the actual entity/product name.
-- CRITICAL: Every slide MUST have COMPLETELY DIFFERENT queries from all other slides. NO duplicate or near-duplicate queries.
-  Show different visual angles of the topic: the product, the CEO, the office, the event, the competitor, the data, the users, etc.
-  Example for 5-slide Apple post:
-    Slide 1: ["Apple WWDC keynote stage", "Apple Park aerial view", "iPhone 16 Pro closeup"]
-    Slide 2: ["Tim Cook presenting", "Apple silicon M4 chip", "MacBook Pro laptop"]
-    Slide 3: ["iOS software interface", "Apple developer conference", "Swift programming code"]
-    Slide 4: ["Apple stock market graph", "smartphone market share", "tech industry competition"]
-    Slide 5: ["Apple Store retail", "Apple logo neon", "future technology concept"]
+For EACH slide, generate 3 Unsplash search queries that will find real photographs related to the slide.
+- Keep queries concise (1 to 3 words max). Unsplash is a photography site, not a web search engine.
+- Every slide MUST have DIFFERENT visual angles (e.g., the device, the coding screen, the executive, the server room, the user).
+- Example for 5-slide post about Roblox:
+  Slide 1: ["Roblox", "game controller", "video game screen"]
+  Slide 2: ["game developer", "programmer typing", "coding laptop"]
+  Slide 3: ["3D animation", "digital design", "virtual world"]
+  Slide 4: ["mobile gamer", "augmented reality", "metaverse"]
+  Slide 5: ["future technology", "glowing neon tech", "computer hardware"]
 
 Output ONLY raw JSON using this exact schema:
 {
@@ -172,7 +171,7 @@ Note: bullet_points is only required for slide_type 'bullets' and 'comparison'. 
         )
         return json.loads(response.text)
 
-    models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.5-pro', 'gemini-1.5-pro']
+    models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro']
     try:
         return run_with_failover("News Generation & Keyword Extraction", models, exec_func)
     except Exception as e:
@@ -190,8 +189,9 @@ def get_valid_unsplash_image(search_queries, session_used_ids, session_used_quer
         return None, None
     history = set(load_history())  # all-time history (cross-post)
     
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    
     for query in search_queries:
-        # Skip queries we've already tried in this run
         q_lower = query.strip().lower()
         if q_lower in session_used_queries:
             print(f"  Skipping already-used query: '{query}'")
@@ -201,15 +201,14 @@ def get_valid_unsplash_image(search_queries, session_used_ids, session_used_quer
         print(f"  Searching Unsplash: '{query}'")
         url = f"https://api.unsplash.com/search/photos?query={urllib.parse.quote(query)}&per_page=10&order_by=relevant&client_id={UNSPLASH_ACCESS_KEY}"
         try:
-            req = urllib.request.Request(url)
-            with urllib.request.urlopen(req) as response:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=20) as response:
                 results = json.loads(response.read().decode()).get('results', [])
                 if not results:
                     print(f"    No results for '{query}'")
                     continue
                 for res in results:
                     img_id = res['id']
-                    # Skip if used in a previous post OR already used in this post
                     if img_id in history or img_id in session_used_ids:
                         continue
                     
@@ -220,44 +219,95 @@ def get_valid_unsplash_image(search_queries, session_used_ids, session_used_quer
                     return temp_path, img_id
         except Exception as e:
             print(f"    Search error for '{query}': {e}")
+            
+    # If specific multi-word queries yielded no results, try simplified 1-word keywords
+    fallback_words = []
+    for q in search_queries:
+        for word in q.split():
+            clean_word = ''.join(c for c in word if c.isalnum())
+            if len(clean_word) >= 4 and clean_word.lower() not in session_used_queries:
+                fallback_words.append(clean_word)
+                
+    for w in fallback_words[:3]:
+        session_used_queries.add(w.lower())
+        print(f"  Fallback Unsplash keyword search: '{w}'")
+        url = f"https://api.unsplash.com/search/photos?query={urllib.parse.quote(w)}&per_page=10&order_by=relevant&client_id={UNSPLASH_ACCESS_KEY}"
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=20) as response:
+                results = json.loads(response.read().decode()).get('results', [])
+                for res in results:
+                    img_id = res['id']
+                    if img_id in history or img_id in session_used_ids:
+                        continue
+                    img_url = res['urls']['regular']
+                    temp_path = f"temp_{img_id}.jpg"
+                    urllib.request.urlretrieve(img_url, temp_path)
+                    print(f"    ✓ Selected fallback: {img_url}")
+                    return temp_path, img_id
+        except Exception as e:
+            print(f"    Fallback search error for '{w}': {e}")
     
-    print(f"  No suitable image found across {len(search_queries)} queries.")
+    print(f"  No suitable Unsplash image found across {len(search_queries)} queries.")
     return None, None
 
-@retry(wait=wait_fixed(25), stop=stop_after_attempt(4))
 def generate_fallback_image(news_topic, slide_headline):
-    """Generate a topic-specific background image using Imagen."""
-    print(f"  Generating AI image for: '{news_topic} — {slide_headline}'")
-    if not API_KEYS: return None
+    """Generate a topic background via Imagen if available, or a sleek dark tech background."""
+    print(f"  Generating background for: '{news_topic} — {slide_headline}'")
     
-    # Build a very specific prompt with the actual topic
-    prompt = f"""Professional editorial photo related to: {news_topic}.
-Context: {slide_headline}.
-Style: Dark moody background, cinematic lighting, high contrast.
-The image should clearly represent the subject matter.
-No text, no logos, no watermarks."""
-    
-    for api_key in API_KEYS:
-        client = genai.Client(api_key=api_key)
-        try:
-            result = client.models.generate_images(
-                model='imagen-3.0-generate-001',
-                prompt=prompt,
-                config=types.GenerateImagesConfig(
-                    number_of_images=1,
-                    output_mime_type="image/jpeg",
-                    aspect_ratio="1:1"
+    # Try Imagen if enabled on API key
+    if API_KEYS:
+        prompt = f"Professional photo about {news_topic}, dark moody lighting, cinematic, high contrast, clean background."
+        for api_key in API_KEYS:
+            try:
+                client = genai.Client(api_key=api_key)
+                result = client.models.generate_images(
+                    model='imagen-3.0-generate-001',
+                    prompt=prompt,
+                    config=types.GenerateImagesConfig(
+                        number_of_images=1,
+                        output_mime_type="image/jpeg",
+                        aspect_ratio="1:1"
+                    )
                 )
-            )
-            for generated_image in result.generated_images:
-                image = Image.open(io.BytesIO(generated_image.image.image_bytes))
-                path = f'fallback_{int(time.time())}.jpg'
-                image.save(path)
-                return path
-        except Exception as e:
-            print(f"  Imagen error: {e}")
-            continue
-    return None
+                for generated_image in result.generated_images:
+                    image = Image.open(io.BytesIO(generated_image.image.image_bytes))
+                    path = f'fallback_{int(time.time())}.jpg'
+                    image.save(path, "JPEG", quality=95)
+                    print("  ✓ AI image generated via Imagen")
+                    return path
+            except Exception as e:
+                err_s = str(e).lower()
+                if "enterprise" in err_s or "developer api mode" in err_s:
+                    # Normal for Developer API keys - don't spam errors
+                    break
+                print(f"  Imagen note: {e}")
+                continue
+                
+    # Create sleek, modern dark tech gradient card background (Linear/Apple Keynote aesthetic)
+    seed = abs(hash(slide_headline)) % 10000
+    path = f"fallback_{int(time.time())}_{seed}.jpg"
+    w, h = 1080, 1080
+    bg = Image.new("RGB", (w, h), (14, 18, 26))
+    draw = ImageDraw.Draw(bg, "RGBA")
+    
+    # Deep subtle vertical gradient
+    for y in range(h):
+        ratio = y / h
+        r = int(12 + ratio * 14)
+        g = int(16 + ratio * 18)
+        b = int(24 + ratio * 26)
+        draw.line([(0, y), (w, y)], fill=(r, g, b, 255))
+        
+    # Ambient warm gold radial glow in upper-right quadrant
+    cx, cy = int(w * 0.82), int(h * 0.28)
+    for radius in range(500, 0, -20):
+        alpha = int((1 - radius / 500) * 22)
+        draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius], fill=(235, 203, 107, alpha))
+        
+    bg.save(path, "JPEG", quality=95)
+    print("  ✓ Sleek procedural dark tech background created")
+    return path
 
 def draw_gradient_overlay(width, height):
     """Full-slide dark gradient using pure PIL (no numpy dependency)."""
@@ -740,22 +790,81 @@ def create_slides(content, slide_image_paths):
                                     line_spacing=1.25,
                                     x_start=MARGIN, x_end=W - MARGIN)
 
-        out_path = f"slide_{idx+1}.png"
-        slide.convert("RGB").save(out_path)
+        out_path = f"slide_{idx+1}.jpg"
+        slide.convert("RGB").save(out_path, "JPEG", quality=93)
         final_slide_paths.append(out_path)
-        print(f"  \u2713 Slide {idx+1} [{slide_type}] \u2192 {out_path}")
+        print(f"  ✓ Slide {idx+1} [{slide_type}] → {out_path}")
 
     return final_slide_paths
 
 def upload_image(file_path):
     print(f"Uploading {file_path} to freeimage.host...")
     url = "https://freeimage.host/api/1/upload"
-    with open(file_path, "rb") as f: b64 = base64.b64encode(f.read()).decode("utf-8")
-    data = urllib.parse.urlencode({"key": "6d207e02198a847aa98d0a2a901485a5", "action": "upload", "source": b64, "format": "json"}).encode("utf-8")
+    with open(file_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("utf-8")
+    data = urllib.parse.urlencode({
+        "key": "6d207e02198a847aa98d0a2a901485a5",
+        "action": "upload",
+        "source": b64,
+        "format": "json"
+    }).encode("utf-8")
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    }
+    
+    for attempt in range(1, 4):
+        try:
+            req = urllib.request.Request(url, data=data, headers=headers)
+            with urllib.request.urlopen(req, timeout=35) as res:
+                res_data = json.loads(res.read().decode())
+                img_url = res_data.get("image", {}).get("url")
+                if img_url:
+                    print(f"  ✓ Uploaded to freeimage.host: {img_url}")
+                    return img_url
+                print(f"  [Attempt {attempt}] Unexpected response: {res_data}")
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode('utf-8', errors='replace')[:200]
+            print(f"  [Attempt {attempt}] HTTP Error {e.code}: {err_body}")
+        except Exception as e:
+            print(f"  [Attempt {attempt}] Upload error: {e}")
+        time.sleep(attempt * 2)
+        
+    return None
+
+def upload_via_github_fallback(slide_paths):
+    """Fail-safe fallback: commit slides to repo and use raw.githubusercontent.com URLs."""
+    print("Attempting GitHub raw repository fallback for slides...")
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, data=data)) as res:
-            return json.loads(res.read().decode())["image"]["url"]
-    except: return None
+        import subprocess
+        import shutil
+        
+        subprocess.run(["git", "config", "--global", "user.name", "github-actions[bot]"], check=False)
+        subprocess.run(["git", "config", "--global", "user.email", "github-actions[bot]@users.noreply.github.com"], check=False)
+        
+        os.makedirs("slides", exist_ok=True)
+        dest_files = []
+        for p in slide_paths:
+            fname = os.path.basename(p)
+            dest = os.path.join("slides", fname)
+            shutil.copy2(p, dest)
+            dest_files.append(dest)
+            
+        subprocess.run(["git", "add"] + dest_files, check=False)
+        subprocess.run(["git", "commit", "-m", "Auto-publish slide assets [skip ci]"], check=False)
+        subprocess.run(["git", "push"], check=True)
+        
+        urls = []
+        ts = int(time.time())
+        for p in slide_paths:
+            fname = os.path.basename(p)
+            raw_url = f"https://raw.githubusercontent.com/sanjay032007/instagram-tech-bot/master/slides/{fname}?v={ts}"
+            urls.append(raw_url)
+        print(f"  ✓ GitHub raw fallback succeeded ({len(urls)} slides)")
+        return urls
+    except Exception as e:
+        print(f"  GitHub fallback failed: {e}")
+        return None
 
 def post_to_instagram(image_urls, caption):
     print("Posting to Instagram...")
@@ -866,6 +975,12 @@ if __name__ == "__main__":
             url = upload_image(slide)
             if url: urls.append(url)
             
+        if len(urls) != len(final_slides):
+            print(f"Warning: Only {len(urls)}/{len(final_slides)} uploaded to freeimage.host. Using GitHub raw hosting fallback...")
+            fallback_urls = upload_via_github_fallback(final_slides)
+            if fallback_urls and len(fallback_urls) == len(final_slides):
+                urls = fallback_urls
+            
         if len(urls) == len(final_slides):
             success = post_to_instagram(urls, content['caption'])
             if success:
@@ -878,8 +993,10 @@ if __name__ == "__main__":
                 print("ERROR: Instagram posting failed!")
                 sys.exit(1)
         else:
-            print("Failed to upload all images.")
+            print(f"Failed to upload all images (got {len(urls)} of {len(final_slides)}).")
             sys.exit(1)
     except Exception as e:
+        import traceback
         print(f"Critical error in main pipeline: {e}")
+        traceback.print_exc()
         sys.exit(1)
