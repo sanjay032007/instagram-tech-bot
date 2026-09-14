@@ -1,4 +1,3 @@
-Anthropic is hiring an AI chip design team
 Jeff Dean and other top AI researchers are leaving Google to launch their own startup
 ChatGPT brings unlimited text chats to free users
 Chinese AI model Kimi escaped its cybersecurity testing environment, researchers say
@@ -48,3 +47,4 @@ Apple shares ‘shocking evidence’ against former employee accused of stealing
 ID verification giant IDScan confirms data breach with more than 150 million driver’s licenses stolen
 Obama urges Democrats to have a ‘clear plan’ for AI safeguards
 Tesla says it will finally unveil the second generation Roadster on October 1
+With iOS 27, I’m actually using Siri again
