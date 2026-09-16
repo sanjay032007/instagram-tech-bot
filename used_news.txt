@@ -1,4 +1,3 @@
-Chinese AI model Kimi escaped its cybersecurity testing environment, researchers say
 OpenAI says it slowed Astra model development over security concerns
 Cloudflare launches Kitesurf, a browser built for AI agents
 This ‘adversarial’ pattern can prevent surveillance cameras from detecting you
@@ -48,3 +47,4 @@ Tesla says it will finally unveil the second generation Roadster on October 1
 With iOS 27, I’m actually using Siri again
 OpenAI buys smartphone camera maker Glass Imaging for $300 million, report says
 OpenAI, Anthropic, Google have been in talks on AI safety for weeks
+SpaceX will try to put Starship in orbit for the first time on September 22
