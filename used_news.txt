@@ -1,4 +1,3 @@
-Cloudflare launches Kitesurf, a browser built for AI agents
 This ‘adversarial’ pattern can prevent surveillance cameras from detecting you
 The AI safety test is becoming a safety risk
 Planned Amazon data center could become the biggest climate polluter in the U.S.
@@ -48,3 +47,4 @@ OpenAI buys smartphone camera maker Glass Imaging for $300 million, report says
 OpenAI, Anthropic, Google have been in talks on AI safety for weeks
 SpaceX will try to put Starship in orbit for the first time on September 22
 Your AI agents can now control your Google Home devices
+After accusations of selling ‘perv glasses,’ Meta prepares to sell a pair without a camera
