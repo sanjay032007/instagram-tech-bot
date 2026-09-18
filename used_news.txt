@@ -1,4 +1,3 @@
-The AI safety test is becoming a safety risk
 Planned Amazon data center could become the biggest climate polluter in the U.S.
 Tech industry is buzzing after a Claude agent hacked into a gym
 As AI-led attacks multiply, OpenAI launches a new cyber model
@@ -48,3 +47,4 @@ SpaceX will try to put Starship in orbit for the first time on September 22
 Your AI agents can now control your Google Home devices
 After accusations of selling ‘perv glasses,’ Meta prepares to sell a pair without a camera
 Pinterest teases a new ‘Restyle’ feature that lets you redesign your room with AI
+OpenAI caught its models leaving notes to successors to hide bad behavior
