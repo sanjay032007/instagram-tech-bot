@@ -1,4 +1,3 @@
-Apple proposes to take a 15% cut of purchases made outside the App Store
 Woman claims her stepfather used Grok to transform childhood photo into explicit imagery
 Talks to sell PayPal to Stripe and Advent are heating up
 Stripe will reportedly acquire AI gateway startup OpenRouter for $7B+
@@ -48,3 +47,4 @@ Kairos Power gets up to $100M from Samsung group to build nuclear reactor for Go
 Meta’s Muse is outpacing ChatGPT’s early mobile launch
 Anthropic releases Opus 5.5 with lower prices and Fable-level performance
 OpenAI launches GPT-6 Sol and Luna, boasting lower cost and fewer mistakes
+YouTube adds new creator tools like video A/B testing, dynamic thumbnails, and live dubbing
