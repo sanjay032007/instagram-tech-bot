@@ -1,4 +1,3 @@
-OpenAI launches a safer ChatGPT for teens — years after teens started using it
 CareCloud confirms 3.7M patients had their medical records stolen in data breach
 AI was supposed to win people over by now — it hasn’t
 US says hackers are targeting vulnerable water systems with the help of AI
@@ -48,3 +47,4 @@ Everything new coming to Meta’s AI agent Muse
 Google tests letting Gemini call businesses for you
 Meta’s Muse Charm looks like a Tamagotchi, but it’s tapping into a much newer trend
 Tesla finally moves to electrify trucking after a decade of work and delays
+Unsecured OpenAI agents posted 53 user images on the internet without the lab’s knowledge
