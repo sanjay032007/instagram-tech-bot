@@ -1,4 +1,3 @@
-ChatGPT can now send texts for you with new Apple Messages plug-in
 Tesla, Uber, and Waymo all get the OK to operate thousands of robotaxis in Nevada
 Anthropic’s Opus 4.6 is a smut-machine
 TikTok reaches $400M settlement over children’s privacy lawsuit
@@ -48,3 +47,4 @@ Unsecured OpenAI agents posted 53 user images on the internet without the lab’
 Ahead of US IPO, British AI neocloud Nscale secures $3.36B in convertible financing
 TikTok agrees to pay at least $100M in Alabama settlement
 Insurers claim AI is already increasing healthcare costs
+Anthropic’s CEO is about to have dinner with President Trump
