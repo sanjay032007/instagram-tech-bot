@@ -1,4 +1,3 @@
-Hugging Face reportedly in talks to be acquired for $13B
 Alabama launches investigation into OpenAI’s hack of Hugging Face
 OpenAI’s Jalapeño chip is built for fast inference at scale, benchmarks show
 SpaceX will build a second, $100B ‘Starbase’ spaceport in Louisiana
@@ -48,3 +47,4 @@ OpenAI takes on Microsoft with the launch of what feels a whole lot like ChatGPT
 OpenAI reportedly in talks to raise $30B round at $1.4T valuation
 AI voice startup ElevenLabs doubles valuation to $22B
 Hackers stole millions of US military personnel records during months-long data breach
+Shopify debuts Canvas, a way to build online stores by chatting with AI
