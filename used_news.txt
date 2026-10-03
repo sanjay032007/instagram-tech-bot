@@ -1,4 +1,3 @@
-Meta settles for $18 billion in lawsuit brought by 29 states over social media harms to children
 Nvidia closes in on Hugging Face acquisition
 OpenAI, Anthropic, Google, and 100 other companies call for action to defend against rogue AI
 Anthropic gets its first court win over the Pentagon’s supply chain risk label
@@ -48,3 +47,4 @@ Shopify debuts Canvas, a way to build online stores by chatting with AI
 Musk’s AI chatbot Grok reportedly encouraged Trump to capture Venezuela’s president
 It’s not AI anymore, it’s ‘super intelligence’ (according to the White House)
 Apple says it’s tightening macOS ‘Full Disk Access’ controls due to new risks from AI agents
+It’s not AI anymore, it’s ‘super intelligence’ (according to the White House)
