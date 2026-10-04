@@ -1,4 +1,3 @@
-OpenAI, Anthropic, Google, and 100 other companies call for action to defend against rogue AI
 Anthropic gets its first court win over the Pentagon’s supply chain risk label
 An Anthropic researcher just gave us a peek at self-improving AI
 Neocloud Lambda secures $1B in debt to buy more chips
@@ -48,3 +47,4 @@ It’s not AI anymore, it’s ‘super intelligence’ (according to the White H
 Apple says it’s tightening macOS ‘Full Disk Access’ controls due to new risks from AI agents
 It’s not AI anymore, it’s ‘super intelligence’ (according to the White House)
 OpenAI safety employee resigns, claiming the company’s ‘culture is broken’
+Federal judge calls Flock ‘indiscriminate mass surveillance’
