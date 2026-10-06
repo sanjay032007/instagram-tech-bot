@@ -1,4 +1,3 @@
-Sony Music, Warner sue Anthropic, alleging a “brazen campaign” of intellectual property theft
 Nvidia’s AI advantage is moving beyond the GPU
 Musk’s faster path to more gas turbines comes with pollution problem
 Apple shares ‘shocking evidence’ against former employee accused of stealing company data for OpenAI
@@ -48,3 +47,4 @@ Federal judge calls Flock ‘indiscriminate mass surveillance’
 Google froze its open source bug bounty program due to a ‘significant rise’ in AI submissions
 At 19, founder raises $11M for Ghost, maker of a $3,499 computer for personal AI
 Reflection debuts Beam, an open-weight AI model to rival Chinese models at lower compute cost
+Mirror Particle is building a ‘world model’ of human behavior
