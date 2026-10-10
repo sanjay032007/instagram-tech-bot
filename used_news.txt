@@ -1,4 +1,3 @@
-With iOS 27, I’m actually using Siri again
 OpenAI buys smartphone camera maker Glass Imaging for $300 million, report says
 OpenAI, Anthropic, Google have been in talks on AI safety for weeks
 SpaceX will try to put Starship in orbit for the first time on September 22
@@ -48,3 +47,4 @@ Google brings agentic AI to Gemini, starting with businesses
 Fired OpenAI safety researchers dispute misconduct claims, warn of chilling effect
 Tesla renames ‘Full Self-Driving’ to ‘Tesla Assisted Driving’ in Europe
 An Anthropic AI model sent a false homicide tip to Philadelphia police
+The maker of non-text AI model Jev valued at $7.5B just weeks after launch
