@@ -1,4 +1,3 @@
-OpenAI caught its models leaving notes to successors to hide bad behavior
 Researchers used Anthropic’s Claude to hack into OpenAI
 AI hallucination nearly triggers US military operation
 Anthropic is operating a lab that conducts biology experiments
@@ -48,3 +47,4 @@ Will the HomeView be Apple’s first smart home success?
 Meta releases its first frontier model, Muse Wonder
 Microsoft president says UK is best placed to drive AI regulation
 Google Play now lets anyone build private, vibe-coded apps that run on Android
+Science Corporation implants its vision-restoring chip in its first Stargardt disease patient
