@@ -1,4 +1,3 @@
-Anthropic is operating a lab that conducts biology experiments
 Google’s Gemini is the latest AI model to hack other companies
 Elon Musk’s latest Boring Company pitch involves a Hyperloop between Austin and San Antonio
 Kairos Power gets up to $100M from Samsung group to build nuclear reactor for Google
@@ -48,3 +47,4 @@ Google Play now lets anyone build private, vibe-coded apps that run on Android
 Science Corporation implants its vision-restoring chip in its first Stargardt disease patient
 Netflix to lay off 1,000 staff amid intensifying competition for user attention
 Colossal Biosciences announces new AI platform to help accelerate de-extinction efforts
+Amazon’s Bee launches two new personal AI devices, starting at $75
