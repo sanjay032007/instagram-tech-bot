@@ -1,4 +1,3 @@
-Kairos Power gets up to $100M from Samsung group to build nuclear reactor for Google
 Meta’s Muse is outpacing ChatGPT’s early mobile launch
 Anthropic releases Opus 5.5 with lower prices and Fable-level performance
 OpenAI launches GPT-6 Sol and Luna, boasting lower cost and fewer mistakes
@@ -48,3 +47,4 @@ Colossal Biosciences announces new AI platform to help accelerate de-extinction 
 Amazon’s Bee launches two new personal AI devices, starting at $75
 Meta launches an open-weight AI model that runs on Macs
 Elorian’s first AI model wants to reason with images, not just about them
+Jev is Vercel’s fastest-adopted AI model ever
