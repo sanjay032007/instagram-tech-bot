@@ -1,4 +1,3 @@
-Anthropic releases Opus 5.5 with lower prices and Fable-level performance
 OpenAI launches GPT-6 Sol and Luna, boasting lower cost and fewer mistakes
 YouTube adds new creator tools like video A/B testing, dynamic thumbnails, and live dubbing
 Everything new coming to Meta’s AI agent Muse
@@ -48,3 +47,4 @@ Meta launches an open-weight AI model that runs on Macs
 Elorian’s first AI model wants to reason with images, not just about them
 Jev is Vercel’s fastest-adopted AI model ever
 India becomes the latest country to report rogue AI agent activity
+Replit makes OpenAI its default over Anthropic, CEO says
