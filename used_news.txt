@@ -1,4 +1,3 @@
-YouTube adds new creator tools like video A/B testing, dynamic thumbnails, and live dubbing
 Everything new coming to Meta’s AI agent Muse
 Google tests letting Gemini call businesses for you
 Meta’s Muse Charm looks like a Tamagotchi, but it’s tapping into a much newer trend
@@ -48,3 +47,4 @@ Jev is Vercel’s fastest-adopted AI model ever
 India becomes the latest country to report rogue AI agent activity
 Replit makes OpenAI its default over Anthropic, CEO says
 Disney agrees to hire the majority of Character.AI’s workforce
+Anthropic says it’s committing 5% of its shares to a ‘public benefit fund’
