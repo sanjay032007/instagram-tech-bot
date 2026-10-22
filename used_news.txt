@@ -1,4 +1,3 @@
-TikTok agrees to pay at least $100M in Alabama settlement
 Insurers claim AI is already increasing healthcare costs
 Anthropic’s CEO is about to have dinner with President Trump
 Meta launches enterprise AI platform, hires MongoDB CEO to lead new initiative
@@ -48,3 +47,4 @@ Meta’s Muse hits 10M U.S. downloads in 40 days, a milestone reached by only 11
 SpaceX’s AI business is beating expectations
 PHP armageddon: OpenAI, Google’s Wiz find ancient holes, panicking the internet
 Tesla says it will start selling Cybercabs by end of year
+Uber puts all 30,000 employees on ChatGPT Work
