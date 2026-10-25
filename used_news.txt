@@ -1,4 +1,3 @@
-OpenAI takes on Microsoft with the launch of what feels a whole lot like ChatGPT’s own office suite
 OpenAI reportedly in talks to raise $30B round at $1.4T valuation
 AI voice startup ElevenLabs doubles valuation to $22B
 Hackers stole millions of US military personnel records during months-long data breach
@@ -48,3 +47,4 @@ Warhound raises $200M to engineer war dogs and arm them with Anduril gear
 OpenAI says it will no longer train its AI models on the live internet, citing “significant risks”
 Forced to pick, Grok’s AI model chooses Republicans. OpenAI’s picks Democrats.
 PHP-ocalypse: How two critical web bugs almost broke the internet
+AI delivers ‘zero financial payoff’ to most companies, Apollo economist says
