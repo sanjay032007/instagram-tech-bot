@@ -1,4 +1,3 @@
-Hackers stole millions of US military personnel records during months-long data breach
 Shopify debuts Canvas, a way to build online stores by chatting with AI
 Musk’s AI chatbot Grok reportedly encouraged Trump to capture Venezuela’s president
 It’s not AI anymore, it’s ‘super intelligence’ (according to the White House)
@@ -48,3 +47,4 @@ PHP-ocalypse: How two critical web bugs almost broke the internet
 AI delivers ‘zero financial payoff’ to most companies, Apollo economist says
 Block’s new voice model sounds eerily human
 SpaceX locks in $40B GPU financing deal with Apollo
+Watch out, YouTube — Instagram goes from short-form to 90-minute videos
