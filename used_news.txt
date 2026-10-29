@@ -1,4 +1,3 @@
-It’s not AI anymore, it’s ‘super intelligence’ (according to the White House)
 OpenAI safety employee resigns, claiming the company’s ‘culture is broken’
 Federal judge calls Flock ‘indiscriminate mass surveillance’
 Google froze its open source bug bounty program due to a ‘significant rise’ in AI submissions
@@ -48,3 +47,4 @@ Google’s Genie 4 world model adds audio, more realistic worlds, and real-time 
 Parents sue OpenAI, alleging GPT-4o coached their daughter off seizure medication
 As AI agents reshape the web, Google opens Gemini and Search to more apps
 Microsoft recorded $10 billion in revenue from OpenAI
+DoorDash to acquire Instacart for $17B
