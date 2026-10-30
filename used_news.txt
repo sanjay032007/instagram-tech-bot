@@ -1,4 +1,3 @@
-Federal judge calls Flock ‘indiscriminate mass surveillance’
 Google froze its open source bug bounty program due to a ‘significant rise’ in AI submissions
 At 19, founder raises $11M for Ghost, maker of a $3,499 computer for personal AI
 Reflection debuts Beam, an open-weight AI model to rival Chinese models at lower compute cost
@@ -48,3 +47,4 @@ As AI agents reshape the web, Google opens Gemini and Search to more apps
 Microsoft recorded $10 billion in revenue from OpenAI
 DoorDash to acquire Instacart for $17B
 Binance pauses withdrawals as hackers suspected of stealing billions in crypto
+Google’s first data center satellite is online and writing poetry
