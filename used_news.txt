@@ -1,4 +1,3 @@
-Mirror Particle is building a ‘world model’ of human behavior
 AI computing startup Lambda to raise $4B ahead of planned IPO
 ChatGPT is getting a lot more visual, with the launch of a new interface
 Google brings agentic AI to Gemini, starting with businesses
@@ -48,3 +47,4 @@ Google’s first data center satellite is online and writing poetry
 Cracks are emerging in the AI spending boom
 Applebee’s exposed customers’ personal data after leaving database password in app
 Judge allows NAACP lawsuit over xAI data center pollution to move forward
+From restaurant guides to payments, here’s how TikTok is building a super app
