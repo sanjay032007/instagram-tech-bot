@@ -1,4 +1,3 @@
-The maker of non-text AI model Jev valued at $7.5B just weeks after launch
 Anthropic can’t reliably control its AI agents. It’s cutting off its internal evals from the live internet instead
 Microsoft’s Satya Nadella says AI models need an ‘emergency brake’
 Will the HomeView be Apple’s first smart home success?
@@ -48,3 +47,4 @@ Apple Watch’s AI features for rewinding and recapping conversations begin beta
 Google will let schools disable its AI tools, but not without sacrificing Search
 Anthropic is working on a system to prove AI models’ identity
 Open source AI is booming. Hugging Face explains who profits.
+Nothing CEO says company’s mysterious AI-first device is dropping next month
