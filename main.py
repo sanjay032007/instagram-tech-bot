@@ -178,11 +178,10 @@ Note: bullet_points is only required for slide_type 'bullets' and 'comparison'. 
         print(f"Failed to generate content after complete failover and retries: {e}")
         raise e
 
-def get_valid_unsplash_image(search_queries, session_used_ids, session_used_queries):
-    """Search Unsplash for the first relevant, non-duplicate image.
-    Uses Unsplash's relevance ranking (top result = best match).
-    session_used_ids: set of image IDs already used in THIS run.
-    session_used_queries: set of query strings already searched in THIS run (skip duplicates).
+def get_valid_unsplash_image(search_queries, session_used_ids, topic_query=""):
+    """Search Unsplash for a topic-relevant, non-duplicate image.
+    Tries each query in order.
+    topic_query: the main topic search string, used as ultimate fallback.
     """
     if not UNSPLASH_ACCESS_KEY:
         print("  No Unsplash key found. Skipping search.")
@@ -191,21 +190,24 @@ def get_valid_unsplash_image(search_queries, session_used_ids, session_used_quer
     
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
     
-    for query in search_queries:
-        q_lower = query.strip().lower()
-        if q_lower in session_used_queries:
-            print(f"  Skipping already-used query: '{query}'")
+    # Build ordered query list: slide-specific queries first, then topic fallback
+    all_queries = list(search_queries)
+    if topic_query and topic_query.strip().lower() not in [q.strip().lower() for q in all_queries]:
+        all_queries.append(topic_query)
+    
+    for query in all_queries:
+        q_clean = query.strip()
+        if not q_clean:
             continue
-        session_used_queries.add(q_lower)
         
-        print(f"  Searching Unsplash: '{query}'")
-        url = f"https://api.unsplash.com/search/photos?query={urllib.parse.quote(query)}&per_page=10&order_by=relevant&client_id={UNSPLASH_ACCESS_KEY}"
+        print(f"  Searching Unsplash: '{q_clean}'")
+        url = f"https://api.unsplash.com/search/photos?query={urllib.parse.quote(q_clean)}&per_page=15&order_by=relevant&client_id={UNSPLASH_ACCESS_KEY}"
         try:
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=20) as response:
                 results = json.loads(response.read().decode()).get('results', [])
                 if not results:
-                    print(f"    No results for '{query}'")
+                    print(f"    No results for '{q_clean}'")
                     continue
                 for res in results:
                     img_id = res['id']
@@ -215,40 +217,12 @@ def get_valid_unsplash_image(search_queries, session_used_ids, session_used_quer
                     img_url = res['urls']['regular']
                     temp_path = f"temp_{img_id}.jpg"
                     urllib.request.urlretrieve(img_url, temp_path)
-                    print(f"    ✓ Selected: {img_url}")
+                    print(f"    ✓ Selected: {img_url} (query: '{q_clean}')")
                     return temp_path, img_id
         except Exception as e:
-            print(f"    Search error for '{query}': {e}")
-            
-    # If specific multi-word queries yielded no results, try simplified 1-word keywords
-    fallback_words = []
-    for q in search_queries:
-        for word in q.split():
-            clean_word = ''.join(c for c in word if c.isalnum())
-            if len(clean_word) >= 4 and clean_word.lower() not in session_used_queries:
-                fallback_words.append(clean_word)
-                
-    for w in fallback_words[:3]:
-        session_used_queries.add(w.lower())
-        print(f"  Fallback Unsplash keyword search: '{w}'")
-        url = f"https://api.unsplash.com/search/photos?query={urllib.parse.quote(w)}&per_page=10&order_by=relevant&client_id={UNSPLASH_ACCESS_KEY}"
-        try:
-            req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=20) as response:
-                results = json.loads(response.read().decode()).get('results', [])
-                for res in results:
-                    img_id = res['id']
-                    if img_id in history or img_id in session_used_ids:
-                        continue
-                    img_url = res['urls']['regular']
-                    temp_path = f"temp_{img_id}.jpg"
-                    urllib.request.urlretrieve(img_url, temp_path)
-                    print(f"    ✓ Selected fallback: {img_url}")
-                    return temp_path, img_id
-        except Exception as e:
-            print(f"    Fallback search error for '{w}': {e}")
+            print(f"    Search error for '{q_clean}': {e}")
     
-    print(f"  No suitable Unsplash image found across {len(search_queries)} queries.")
+    print(f"  No suitable Unsplash image found across {len(all_queries)} queries.")
     return None, None
 
 def generate_fallback_image(news_topic, slide_headline):
@@ -952,18 +926,15 @@ if __name__ == "__main__":
         topic_query = content.get('topic_search_query', news_topic)
         slide_image_paths = []
         session_used_ids = set()      # prevent same image on two slides
-        session_used_queries = set()  # prevent searching same query twice
         
         for i, slide in enumerate(content['slides']):
             print(f"\n--- Processing Background for Slide {i+1} ---")
             slide_headline = slide.get('headline', '').replace('**', '')
             
-            # Build search queries: slide-specific first, then topic fallback
+            # Build search queries: slide-specific queries
             queries = list(slide.get('search_queries', []))
-            if topic_query and topic_query.strip().lower() not in [q.strip().lower() for q in queries]:
-                queries.append(topic_query)
             
-            img_path, img_id = get_valid_unsplash_image(queries, session_used_ids, session_used_queries)
+            img_path, img_id = get_valid_unsplash_image(queries, session_used_ids, topic_query)
             if img_path and img_id:
                 session_used_ids.add(img_id)
                 # Save to persistent history
