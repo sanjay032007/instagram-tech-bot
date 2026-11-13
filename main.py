@@ -73,7 +73,7 @@ def run_with_failover(task_name, models, execution_func):
         
     last_exception = None
     for api_key in API_KEYS:
-        client = genai.Client(api_key=api_key)
+        client = genai.Client(api_key=api_key, http_options={'api_version': 'v1beta'})
         for model in models:
             try:
                 result = execution_func(client, model)
@@ -171,7 +171,7 @@ Note: bullet_points is only required for slide_type 'bullets' and 'comparison'. 
         )
         return json.loads(response.text)
 
-    models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro']
+    models = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-4-carbon']
     try:
         return run_with_failover("News Generation & Keyword Extraction", models, exec_func)
     except Exception as e:
@@ -260,7 +260,7 @@ def generate_fallback_image(news_topic, slide_headline):
         prompt = f"Professional photo about {news_topic}, dark moody lighting, cinematic, high contrast, clean background."
         for api_key in API_KEYS:
             try:
-                client = genai.Client(api_key=api_key)
+                client = genai.Client(api_key=api_key, http_options={'api_version': 'v1beta'})
                 result = client.models.generate_images(
                     model='imagen-3.0-generate-001',
                     prompt=prompt,
