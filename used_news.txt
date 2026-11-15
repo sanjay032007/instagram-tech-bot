@@ -1,4 +1,3 @@
-Google Play now lets anyone build private, vibe-coded apps that run on Android
 Science Corporation implants its vision-restoring chip in its first Stargardt disease patient
 Netflix to lay off 1,000 staff amid intensifying competition for user attention
 Colossal Biosciences announces new AI platform to help accelerate de-extinction efforts
@@ -48,3 +47,4 @@ The unfolding Jensen Huang scandal: a timeline
 ChatGPT’s new Wallet lets AI agents shop and check out for you
 US government grounds all flights across the United States ‘due to extraordinary circumstances’
 Jensen Huang’s departure blasts big hole in AI startup funding, VCs and founders say
+Elon Musk, other tech execs sign petition calling on Nvidia to reinstate Jensen Huang
