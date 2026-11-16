@@ -1,4 +1,3 @@
-Colossal Biosciences announces new AI platform to help accelerate de-extinction efforts
 Amazon’s Bee launches two new personal AI devices, starting at $75
 Meta launches an open-weight AI model that runs on Macs
 Elorian’s first AI model wants to reason with images, not just about them
@@ -48,3 +47,4 @@ Jensen Huang’s departure blasts big hole in AI startup funding, VCs and founde
 Elon Musk, other tech execs sign petition calling on Nvidia to reinstate Jensen Huang
 Tesla opens Cybercab pre-orders ‘for personal use,’ with geo restrictions and a $299 monthly fee
 Where was Nvidia’s security team?
+California state AG sues OpenAI over rogue agent incidents
