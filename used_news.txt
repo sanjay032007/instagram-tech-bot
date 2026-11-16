@@ -1,4 +1,3 @@
-Netflix to lay off 1,000 staff amid intensifying competition for user attention
 Colossal Biosciences announces new AI platform to help accelerate de-extinction efforts
 Amazon’s Bee launches two new personal AI devices, starting at $75
 Meta launches an open-weight AI model that runs on Macs
@@ -48,3 +47,4 @@ US government grounds all flights across the United States ‘due to extraordina
 Jensen Huang’s departure blasts big hole in AI startup funding, VCs and founders say
 Elon Musk, other tech execs sign petition calling on Nvidia to reinstate Jensen Huang
 Tesla opens Cybercab pre-orders ‘for personal use,’ with geo restrictions and a $299 monthly fee
+Where was Nvidia’s security team?
