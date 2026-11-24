@@ -1,4 +1,3 @@
-Uber puts all 30,000 employees on ChatGPT Work
 Warhound raises $200M to engineer war dogs and arm them with Anduril gear
 OpenAI says it will no longer train its AI models on the live internet, citing “significant risks”
 Forced to pick, Grok’s AI model chooses Republicans. OpenAI’s picks Democrats.
@@ -48,3 +47,4 @@ Signal restricts mobile screenshots as it confronts ‘existential threat’ of 
 Experts warn: Nearly everyone in AI is susceptible to a honey-trap scheme right now
 How Notable Capital, GIC, and Baillie Gifford bet big on Anthropic before its IPO
 Nvidia employees greet Jensen Huang like a hero as he returns to company’s HQ
+In all-hands meeting, Jensen Huang thanks White House and says he’s in therapy
