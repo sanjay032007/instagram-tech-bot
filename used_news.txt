@@ -1,4 +1,3 @@
-OpenAI says it will no longer train its AI models on the live internet, citing “significant risks”
 Forced to pick, Grok’s AI model chooses Republicans. OpenAI’s picks Democrats.
 PHP-ocalypse: How two critical web bugs almost broke the internet
 AI delivers ‘zero financial payoff’ to most companies, Apollo economist says
@@ -48,3 +47,4 @@ How Notable Capital, GIC, and Baillie Gifford bet big on Anthropic before its IP
 Nvidia employees greet Jensen Huang like a hero as he returns to company’s HQ
 In all-hands meeting, Jensen Huang thanks White House and says he’s in therapy
 Yale’s Sonnenfeld: Nvidia is a ‘detriment’ to US industrial might — not a champion
+FCC approves SpaceX plan to put AI data centers in space
