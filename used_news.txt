@@ -1,4 +1,3 @@
-Block’s new voice model sounds eerily human
 SpaceX locks in $40B GPU financing deal with Apollo
 Watch out, YouTube — Instagram goes from short-form to 90-minute videos
 Google’s Genie 4 world model adds audio, more realistic worlds, and real-time steering
@@ -48,3 +47,4 @@ FCC approves SpaceX plan to put AI data centers in space
 Character.AI’s plan to auction off users’ private chats challenged by state AGs
 Nvidia hits pause on chip shipments to Southeast Asia
 S&P considers Nvidia credit downgrade over governance and ‘key man’ risks
+Want to buy your kid an AI toy this Christmas? Not in New York
