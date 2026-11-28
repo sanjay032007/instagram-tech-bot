@@ -1,4 +1,3 @@
-SpaceX locks in $40B GPU financing deal with Apollo
 Watch out, YouTube — Instagram goes from short-form to 90-minute videos
 Google’s Genie 4 world model adds audio, more realistic worlds, and real-time steering
 Parents sue OpenAI, alleging GPT-4o coached their daughter off seizure medication
@@ -48,3 +47,4 @@ Character.AI’s plan to auction off users’ private chats challenged by state 
 Nvidia hits pause on chip shipments to Southeast Asia
 S&P considers Nvidia credit downgrade over governance and ‘key man’ risks
 Want to buy your kid an AI toy this Christmas? Not in New York
+1Password said hackers broke into its internal systems, but customer passwords are safe
